@@ -1,3 +1,24 @@
 spring:
   application:
     name: api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/todolist
+    username: todolist
+    password: todolist
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    rabbit:
+      enabled: false
