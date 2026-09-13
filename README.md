@@ -90,4 +90,4 @@ docker compose down -v
 | `POSTGRES_DB`       | `todolist` | Nome do banco                |
 | `POSTGRES_USER`     | `todolist` | Usuário do banco             |
 | `POSTGRES_PASSWORD` | `todolist` | Senha do banco               |
-| `POSTGRES_PORT`     | `5433`     | Porta exposta no host        |
+| `POSTGRES_PORT`     | `5432`     | Porta exposta no host        |
