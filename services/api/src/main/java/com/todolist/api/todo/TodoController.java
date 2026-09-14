@@ -9,6 +9,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import com.todolist.api.shared.security.AuthenticatedUser;
 import com.todolist.api.shared.web.PageResponse;
 import com.todolist.api.todo.dto.CreateTodoRequest;
 import com.todolist.api.todo.dto.TodoResponse;
@@ -38,19 +40,21 @@ public class TodoController {
 	}
 
 	@GetMapping
-	public PageResponse<TodoResponse> list(@RequestParam(required = false) Boolean completed,
+	public PageResponse<TodoResponse> list(@AuthenticationPrincipal AuthenticatedUser currentUser,
+			@RequestParam(required = false) Boolean completed,
 			@ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return todoService.findAllTodos(completed, pageable);
+		return todoService.findAllTodos(currentUser, completed, pageable);
 	}
 
 	@GetMapping("/{id}")
-	public TodoResponse get(@PathVariable UUID id) {
-		return todoService.findTodoById(id);
+	public TodoResponse get(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable UUID id) {
+		return todoService.findTodoById(currentUser, id);
 	}
 
 	@PostMapping
-	public ResponseEntity<TodoResponse> create(@Valid @RequestBody CreateTodoRequest request) {
-		TodoResponse created = todoService.createTodo(request);
+	public ResponseEntity<TodoResponse> create(@AuthenticationPrincipal AuthenticatedUser currentUser,
+			@Valid @RequestBody CreateTodoRequest request) {
+		TodoResponse created = todoService.createTodo(currentUser, request);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")
 				.buildAndExpand(created.id())
@@ -59,14 +63,14 @@ public class TodoController {
 	}
 
 	@PutMapping("/{id}")
-	public TodoResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateTodoRequest request) {
-		return todoService.updateTodo(id, request);
+	public TodoResponse update(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable UUID id,
+			@Valid @RequestBody UpdateTodoRequest request) {
+		return todoService.updateTodo(currentUser, id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void delete(@PathVariable UUID id) {
-		todoService.deleteTodo(id);
+	public void delete(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable UUID id) {
+		todoService.deleteTodo(currentUser, id);
 	}
-
 }

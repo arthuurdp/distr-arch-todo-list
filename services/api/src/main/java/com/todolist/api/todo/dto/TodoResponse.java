@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record TodoResponse(
 		UUID id,
+		UUID ownerId,
 		String title,
 		String description,
 		boolean completed,

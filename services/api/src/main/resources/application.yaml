@@ -7,12 +7,19 @@ spring:
     password: todolist
   jpa:
     open-in-view: false
+    show-sql: true
     hibernate:
       ddl-auto: validate
   data:
     web:
       pageable:
         max-page-size: 100
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-jwt-secret-change-me-0123456789}
+    issuer: todolist-api
+    expiration: 1h
 
 management:
   endpoints:

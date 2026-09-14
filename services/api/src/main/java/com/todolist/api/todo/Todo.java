@@ -5,11 +5,16 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import com.todolist.api.user.User;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -20,6 +25,10 @@ public class Todo {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "user_id", nullable = false, updatable = false)
+	private User owner;
 
 	@Column(nullable = false, length = 120)
 	private String title;
@@ -42,7 +51,8 @@ public class Todo {
 	protected Todo() {
 	}
 
-	public Todo(String title, String description, LocalDate dueDate) {
+	public Todo(User owner, String title, String description, LocalDate dueDate) {
+		this.owner = owner;
 		this.title = title;
 		this.description = description;
 		this.dueDate = dueDate;
@@ -68,6 +78,10 @@ public class Todo {
 
 	public UUID getId() {
 		return id;
+	}
+
+	public User getOwner() {
+		return owner;
 	}
 
 	public String getTitle() {

@@ -28,7 +28,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-todolist}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-todolist}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-todolist}
-    # Direct access for phase 1 only; the nginx gateway becomes the single entry point in phase 3.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
