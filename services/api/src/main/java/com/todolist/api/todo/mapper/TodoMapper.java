@@ -10,6 +10,7 @@ public class TodoMapper {
     public TodoResponse toResponse(Todo todo) {
         return new TodoResponse(
                 todo.getId(),
+                todo.getOwner().getId(),
                 todo.getTitle(),
                 todo.getDescription(),
                 todo.isCompleted(),
