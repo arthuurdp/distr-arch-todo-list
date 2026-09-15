@@ -28,6 +28,7 @@ public class AuthTestSupport {
 		this.tokenService = tokenService;
 	}
 	public void resetDatabase() {
+		jdbcTemplate.update("DELETE FROM password_reset_codes");
 		jdbcTemplate.update("DELETE FROM todos");
 		jdbcTemplate.update("DELETE FROM users WHERE email <> ?", SEEDED_ADMIN_EMAIL);
 	}

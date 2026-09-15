@@ -8,6 +8,8 @@ Todos os exemplos de resposta abaixo foram capturados da API rodando via `docker
 - [Autenticação](#autenticação)
   - [POST /api/auth/register](#post-apiauthregister)
   - [POST /api/auth/login](#post-apiauthlogin)
+  - [POST /api/auth/forgot-password](#post-apiauthforgot-password)
+  - [POST /api/auth/reset-password](#post-apiauthreset-password)
   - [GET /api/auth/me](#get-apiauthme)
 - [Tarefas](#tarefas)
   - [GET /api/todos](#get-apitodos)
@@ -68,7 +70,7 @@ Formato de toda resposta paginada:
 
 ### POST /api/auth/register
 
-Cria uma conta nova. **Acesso:** público.
+Cria uma conta nova e dispara o email de boas-vindas. **Acesso:** público.
 
 A conta é **sempre** criada com o papel `USER`, mesmo que o corpo envie `"role": "ADMIN"`. Só um administrador pode promover alguém.
 
@@ -100,12 +102,15 @@ curl -X POST http://localhost:8080/api/auth/register \
 
 O cadastro não retorna token. Em seguida, faça login.
 
+**Efeito assíncrono:** após o commit, a API publica `UserRegisteredEvent` na fila `email.welcome`, e o `notification-worker` envia o email "Welcome to Todo List" (visível no Mailpit em http://localhost:8025). A resposta não espera o envio.
+
 **Erros**
 
 | Status | Quando | Exemplo |
 |--------|--------|---------|
 | 400 | Campos inválidos | ver abaixo |
 | 409 | Email já cadastrado (sem diferenciar maiúsculas) | `{"title": "Conflict", "status": 409, "detail": "Email is already registered", "instance": "/api/auth/register"}` |
+| 429 | Limite de requisições do gateway | ver [rate limit](#limites-de-requisição-rate-limit) |
 
 ```json
 {
@@ -162,6 +167,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 |--------|--------|
 | 400 | Campos ausentes ou email mal formatado |
 | 401 | Email inexistente **ou** senha incorreta. A resposta é idêntica nos dois casos, para não revelar quais emails estão cadastrados |
+| 429 | Limite de requisições do gateway |
 
 ```json
 {
@@ -171,6 +177,91 @@ curl -X POST http://localhost:8080/api/auth/login \
   "instance": "/api/auth/login"
 }
 ```
+
+---
+
+### POST /api/auth/forgot-password
+
+Pede um código de 6 dígitos para redefinir a senha. **Acesso:** público.
+
+**Corpo**
+
+| Campo   | Tipo   | Obrigatório | Regras |
+|---------|--------|-------------|--------|
+| `email` | string | sim | Formato de email (não diferencia maiúsculas) |
+
+```bash
+curl -X POST http://localhost:8080/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@gmail.com"}'
+```
+
+**Resposta `202 Accepted`**, sem corpo.
+
+A resposta é **sempre `202`**, exista ou não uma conta com esse email, para não revelar quais emails estão cadastrados. Quando a conta existe:
+
+1. Os códigos anteriores do usuário são invalidados.
+2. Um novo código aleatório é gerado e apenas o seu hash é gravado, com validade de **15 minutos**.
+3. Após o commit, a API publica `PasswordResetRequestedEvent` na fila `email.password-reset`.
+4. O `notification-worker` envia o email "Your password reset code":
+
+```
+Hi Test,
+Here's your 6-digit code to reset your password: 307215
+The code expires in 14 minutes and can be used only once.
+```
+
+**Erros:** `400` email ausente ou mal formatado; `429` limite de requisições do gateway.
+
+---
+
+### POST /api/auth/reset-password
+
+Define uma nova senha usando o código recebido por email. **Acesso:** público.
+
+**Corpo**
+
+| Campo         | Tipo   | Obrigatório | Regras |
+|---------------|--------|-------------|--------|
+| `email`       | string | sim | Formato de email |
+| `code`        | string | sim | Exatamente 6 dígitos |
+| `newPassword` | string | sim | Entre 8 e 72 caracteres |
+
+```bash
+curl -X POST http://localhost:8080/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@gmail.com", "code": "307215", "newPassword": "NewPassword123!"}'
+```
+
+**Resposta `204 No Content`**, sem corpo. A partir daí, o login só funciona com a nova senha.
+
+**Regras do código**
+
+| Regra | Detalhe |
+|-------|---------|
+| Validade | 15 minutos a partir do pedido |
+| Uso único | Após uma troca bem-sucedida, o código não serve mais |
+| Só o mais recente vale | Um novo `forgot-password` invalida o código anterior |
+| Tentativas | Cada código errado consome 1 de 5 tentativas; depois disso o código é bloqueado, mesmo que o valor correto seja enviado |
+
+**Erros**
+
+| Status | Quando |
+|--------|--------|
+| 400 `Bad Request` | Campos inválidos (ex.: `code` que não tem 6 dígitos, senha curta) |
+| 400 `Invalid password reset code` | Email sem conta, código errado, expirado, já usado, substituído por um mais novo ou bloqueado. A resposta é a mesma em todos os casos |
+| 429 | Limite de requisições do gateway |
+
+```json
+{
+  "title": "Invalid password reset code",
+  "status": 400,
+  "detail": "Invalid or expired password reset code",
+  "instance": "/api/auth/reset-password"
+}
+```
+
+> Tokens JWT emitidos antes da troca continuam válidos até expirar (no máximo 1h). Ver [limitações](AUTENTICACAO.md#limitações-conhecidas).
 
 ---
 
@@ -512,7 +603,7 @@ curl -X PATCH http://localhost:8080/api/admin/users/aa6a3ee3-a21d-4ffc-9420-88f9
 
 ### DELETE /api/admin/users/{id}
 
-Remove um usuário **e todas as tarefas dele** (`ON DELETE CASCADE` no banco). **Acesso:** ADMIN.
+Remove um usuário **e todas as tarefas e códigos de redefinição dele** (`ON DELETE CASCADE` no banco). **Acesso:** ADMIN.
 
 ```bash
 curl -X DELETE http://localhost:8080/api/admin/users/aa6a3ee3-a21d-4ffc-9420-88f95f34cbfd \
@@ -533,21 +624,24 @@ As regras de não alterar nem remover a si mesmo garantem que sempre reste ao me
 |-----------------------|-----------|
 | `/swagger-ui.html`    | Swagger UI, para testar a API pelo navegador |
 | `/v3/api-docs`        | Especificação OpenAPI em JSON (importável no Postman/Insomnia) |
-| `/actuator/health`    | Saúde da aplicação, usada pelo healthcheck do Docker: `{"status": "UP"}` |
+| `/actuator/health`    | Saúde da réplica que atendeu, usada pelo healthcheck do Docker: `{"status": "UP"}` |
+| `/gateway/health`     | Saúde do próprio gateway, respondida pelo nginx sem passar pela API |
 
 ---
 
 ## Matriz de permissões
 
-| Endpoint                          | Sem token | USER               | ADMIN |
-|-----------------------------------|-----------|--------------------|-------|
-| `POST /api/auth/register`         | sim       | sim                | sim   |
-| `POST /api/auth/login`            | sim       | sim                | sim   |
-| `GET /api/auth/me`                | 401       | sim                | sim   |
-| `GET /api/todos`                  | 401       | só as próprias     | todas |
-| `GET/PUT/DELETE /api/todos/{id}`  | 401       | só as próprias (senão 404) | todas |
-| `POST /api/todos`                 | 401       | sim                | sim   |
-| `/api/admin/**`                   | 401       | 403                | sim   |
+| Endpoint                              | Sem token | USER               | ADMIN |
+|---------------------------------------|-----------|--------------------|-------|
+| `POST /api/auth/register`             | sim       | sim                | sim   |
+| `POST /api/auth/login`                | sim       | sim                | sim   |
+| `POST /api/auth/forgot-password`      | sim       | sim                | sim   |
+| `POST /api/auth/reset-password`       | sim       | sim                | sim   |
+| `GET /api/auth/me`                    | 401       | sim                | sim   |
+| `GET /api/todos`                      | 401       | só as próprias     | todas |
+| `GET/PUT/DELETE /api/todos/{id}`      | 401       | só as próprias (senão 404) | todas |
+| `POST /api/todos`                     | 401       | sim                | sim   |
+| `/api/admin/**`                       | 401       | 403                | sim   |
 
 ---
 
@@ -560,21 +654,22 @@ Todos os erros seguem o padrão [RFC 9457 – Problem Details for HTTP APIs](htt
 | `title`    | Resumo do tipo de erro |
 | `status`   | Código HTTP |
 | `detail`   | Explicação do caso específico |
-| `instance` | Rota que gerou o erro |
+| `instance` | Rota que gerou o erro (ausente nos erros gerados pelo gateway) |
 | `errors`   | Só em erros de validação: mapa `campo -> mensagem` |
 
-| Status | `title`                   | Quando |
-|--------|---------------------------|--------|
-| 400    | `Bad Request`             | Validação dos campos, JSON mal formado, UUID ou parâmetro com tipo inválido |
-| 400    | `Invalid sort property`   | `sort` com campo fora da lista permitida |
-| 401    | `Unauthorized`            | Sem token, token mal formado, assinatura inválida ou expirado |
-| 401    | `Invalid credentials`     | Login com email ou senha incorretos |
-| 403    | `Forbidden`               | Autenticado, mas o papel não tem acesso (ex.: `USER` em `/api/admin/**`) |
-| 404    | `Resource not found`      | Recurso não existe ou pertence a outro usuário |
-| 409    | `Conflict`                | Email já cadastrado |
-| 422    | `Business rule violation` | Regra de negócio violada (ex.: admin alterando o próprio papel) |
-| 429    | `Too Many Requests`       | Gerado pelo **gateway**: limite de requisições por IP excedido (ver abaixo) |
-| 503    | `Service Unavailable`     | Gerado pelo **gateway**: nenhuma réplica da API está disponível |
+| Status | `title`                       | Quando |
+|--------|-------------------------------|--------|
+| 400    | `Bad Request`                 | Validação dos campos, JSON mal formado, UUID ou parâmetro com tipo inválido |
+| 400    | `Invalid sort property`       | `sort` com campo fora da lista permitida |
+| 400    | `Invalid password reset code` | Código de redefinição errado, expirado, usado, substituído ou bloqueado |
+| 401    | `Unauthorized`                | Sem token, token mal formado, assinatura inválida ou expirado |
+| 401    | `Invalid credentials`         | Login com email ou senha incorretos |
+| 403    | `Forbidden`                   | Autenticado, mas o papel não tem acesso (ex.: `USER` em `/api/admin/**`) |
+| 404    | `Resource not found`          | Recurso não existe ou pertence a outro usuário |
+| 409    | `Conflict`                    | Email já cadastrado |
+| 422    | `Business rule violation`     | Regra de negócio violada (ex.: admin alterando o próprio papel) |
+| 429    | `Too Many Requests`           | Gerado pelo **gateway**: limite de requisições por IP excedido (ver abaixo) |
+| 503    | `Service Unavailable`         | Gerado pelo **gateway**: nenhuma réplica da API está disponível |
 
 ### Limites de requisição (rate limit)
 
@@ -582,7 +677,7 @@ Aplicados pelo gateway nginx, por endereço IP, antes de a requisição chegar �
 
 | Rotas | Limite | Rajada tolerada |
 |-------|--------|-----------------|
-| `POST /api/auth/login`, `POST /api/auth/register` | 10 por minuto | 5 requisições extras imediatas |
+| `POST /api/auth/login`, `register`, `forgot-password`, `reset-password` | 10 por minuto | 5 requisições extras imediatas |
 | Todas as demais | 10 por segundo | 20 requisições extras imediatas |
 
 Ao exceder o limite, o gateway responde sem repassar a requisição para a API (por isso a resposta não traz `X-Instance-Id`):

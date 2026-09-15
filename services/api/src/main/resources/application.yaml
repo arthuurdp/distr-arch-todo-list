@@ -14,6 +14,8 @@ spring:
     web:
       pageable:
         max-page-size: 100
+  rabbitmq:
+    connection-timeout: 5s
 
 server:
   forward-headers-strategy: framework

@@ -13,6 +13,7 @@ Este documento explica como a API identifica quem está chamando (autenticação
 - [Por que JWT stateless](#por-que-jwt-stateless)
 - [Por que HS256](#por-que-hs256)
 - [Proteções implementadas](#proteções-implementadas)
+- [Redefinição de senha](#redefinição-de-senha)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Configuração](#configuração)
 - [Onde está no código](#onde-está-no-código)
@@ -228,6 +229,57 @@ Nesta arquitetura, **quem emite e quem valida é o mesmo serviço** (as réplica
 
 ---
 
+## Redefinição de senha
+
+Quem esqueceu a senha recebe por email um **código de 6 dígitos** e o usa para definir uma nova. O envio do email é assíncrono, via RabbitMQ (detalhes em [ARQUITETURA.md](ARQUITETURA.md#6-mensageria-com-rabbitmq)).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Cliente
+    participant A as API
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+    participant W as notification-worker
+    participant M as Mailpit
+
+    C->>A: POST /api/auth/forgot-password {email}
+    A->>A: gera código aleatório (SecureRandom) e o hash BCrypt
+    alt email cadastrado
+        A->>DB: invalida códigos anteriores e grava o novo hash (expira em 15 min)
+        A->>MQ: PasswordResetRequestedEvent (após o commit)
+    end
+    A-->>C: 202 Accepted (sempre, exista ou não o email)
+    MQ->>W: email.password-reset
+    W->>M: email "Here's your 6-digit code to reset your password"
+
+    C->>A: POST /api/auth/reset-password {email, code, newPassword}
+    A->>DB: busca o código ativo do usuário
+    alt código confere, dentro da validade e com tentativas restantes
+        A->>DB: grava a nova senha (BCrypt) e marca o código como usado
+        A-->>C: 204 No Content
+    else código errado
+        A->>DB: soma 1 tentativa
+        A-->>C: 400 Invalid password reset code
+    end
+```
+
+| Regra | Como | Por quê |
+|-------|------|---------|
+| Resposta sempre `202` | `forgot-password` responde igual para email cadastrado ou não, e gera e faz hash do código nos dois casos | Não revela quais emails existem, nem pelo conteúdo nem pelo tempo de resposta |
+| Código aleatório de verdade | `SecureRandom`, 6 dígitos (1 milhão de combinações) | `Random` comum é previsível |
+| Código nunca em texto puro no banco | Apenas o hash BCrypt fica em `password_reset_codes` | Um vazamento do banco não entrega códigos válidos |
+| Validade curta | 15 minutos | Limita a janela de ataque |
+| Máximo de 5 tentativas por código | Cada código errado soma uma tentativa; na quinta, o código é bloqueado | Com 5 chutes em 1 milhão, adivinhar é inviável |
+| Tentativa errada é gravada mesmo com erro | `@Transactional(noRollbackFor = InvalidPasswordResetCodeException.class)` | Sem isso, a exceção desfaria a transação e o contador nunca subiria |
+| Uso único | O código é marcado como usado após a troca | Um email antigo não pode ser reutilizado |
+| Pedido novo invalida o anterior | Só o código mais recente é aceito | Evita vários códigos válidos ao mesmo tempo |
+| Mesma resposta para todo erro | Email inexistente, código errado, expirado, usado ou bloqueado: todos `400` com a mesma mensagem | Não informa qual parte do palpite estava certa |
+| Rate limit no gateway | `forgot-password` e `reset-password` estão na zona restrita (10/min por IP) | Dificulta tanto força bruta de códigos quanto disparo de emails em massa |
+| Email não enviado se expirou na fila | O worker descarta o evento se o código já venceu | Se o worker ficou parado, não faz sentido enviar um código inútil |
+
+---
+
 ## Limitações conhecidas
 
 São consequências diretas de o token ser stateless. Estão documentadas porque são perguntas prováveis na apresentação.
@@ -266,6 +318,8 @@ Todas as instâncias da API devem receber o **mesmo** `JWT_SECRET`. Para gerar u
 | Propriedades validadas (`app.jwt.*`) | [`shared/config/JwtProperties.java`](../services/api/src/main/java/com/todolist/api/shared/config/JwtProperties.java) |
 | Emissão do token | [`auth/TokenService.java`](../services/api/src/main/java/com/todolist/api/auth/TokenService.java) |
 | Cadastro e login | [`auth/AuthService.java`](../services/api/src/main/java/com/todolist/api/auth/AuthService.java) |
+| Redefinição de senha | [`auth/PasswordResetService.java`](../services/api/src/main/java/com/todolist/api/auth/PasswordResetService.java) |
+| Códigos de redefinição (validade, tentativas, uso) | [`auth/PasswordResetCode.java`](../services/api/src/main/java/com/todolist/api/auth/PasswordResetCode.java) |
 | Token para `AuthenticatedUser` e papéis | [`shared/security/AuthenticatedUserJwtConverter.java`](../services/api/src/main/java/com/todolist/api/shared/security/AuthenticatedUserJwtConverter.java) |
 | Usuário da requisição | [`shared/security/AuthenticatedUser.java`](../services/api/src/main/java/com/todolist/api/shared/security/AuthenticatedUser.java) |
 | 401/403 em Problem Details | [`shared/security/ProblemDetailsSecurityHandler.java`](../services/api/src/main/java/com/todolist/api/shared/security/ProblemDetailsSecurityHandler.java) |

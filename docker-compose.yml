@@ -10,6 +10,8 @@ x-api: &api
   depends_on:
     postgres:
       condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
   healthcheck:
     test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
     interval: 10s
@@ -21,8 +23,10 @@ x-api-environment: &api-environment
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-todolist}
   SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-todolist}
   SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-todolist}
-  # Must be identical on every replica, otherwise a token issued by api-1 is rejected by api-2.
-  JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-todolist}
+  SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-todolist}
+  JWT_SECRET: ${JWT_SECRET:-PtzDowd3Vw16Sz3T4FQM6m+366pPJbS5IPoSZS5Upkc=}
 
 services:
   postgres:
@@ -43,6 +47,38 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    build:
+      context: ./infra/rabbitmq
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-todolist}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-todolist}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  mailpit:
+    build:
+      context: ./infra/mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api-1:
     <<: *api
     environment:
@@ -54,6 +90,29 @@ services:
     environment:
       <<: *api-environment
       INSTANCE_ID: api-2
+
+  notification-worker:
+    build:
+      context: .
+      dockerfile: services/notification-worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-todolist}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-todolist}
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   gateway:
     build:
@@ -74,3 +133,4 @@ services:
 
 volumes:
   postgres-data:
+  rabbitmq-data:

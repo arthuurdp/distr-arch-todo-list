@@ -56,6 +56,10 @@ public class User {
 		this.role = role;
 	}
 
+	public void changePassword(String passwordHash) {
+		this.passwordHash = passwordHash;
+	}
+
 	@PrePersist
 	void onCreate() {
 		this.createdAt = Instant.now().truncatedTo(ChronoUnit.MICROS);

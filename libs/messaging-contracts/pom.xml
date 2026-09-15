@@ -14,4 +14,15 @@
 	<name>messaging-contracts</name>
 	<description>Event records and queue names shared by api and notification-worker</description>
 
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.amqp</groupId>
+			<artifactId>spring-rabbit</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>tools.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+	</dependencies>
+
 </project>
