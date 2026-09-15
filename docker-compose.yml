@@ -1,5 +1,29 @@
 name: distr-arch-todo-list
 
+# Shared definition of the API. api-1 and api-2 are two replicas of the same service, reachable only through the gateway.
+x-api: &api
+  build:
+    context: .
+    dockerfile: services/api/Dockerfile
+  image: distr-arch-todo-list-api
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 30s
+
+x-api-environment: &api-environment
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-todolist}
+  SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-todolist}
+  SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-todolist}
+  # Must be identical on every replica, otherwise a token issued by api-1 is rejected by api-2.
+  JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
+
 services:
   postgres:
     build:
@@ -19,27 +43,34 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: services/api/Dockerfile
-    restart: unless-stopped
+  api-1:
+    <<: *api
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-todolist}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-todolist}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-todolist}
-      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
+      <<: *api-environment
+      INSTANCE_ID: api-1
+
+  api-2:
+    <<: *api
+    environment:
+      <<: *api-environment
+      INSTANCE_ID: api-2
+
+  gateway:
+    build:
+      context: ./infra/nginx
+    restart: unless-stopped
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "${GATEWAY_PORT:-8080}:80"
     depends_on:
-      postgres:
+      api-1:
+        condition: service_healthy
+      api-2:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/gateway/health"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 5
 
 volumes:
   postgres-data:

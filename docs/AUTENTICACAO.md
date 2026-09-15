@@ -182,7 +182,7 @@ Rotas de tarefas estão abertas a qualquer usuário autenticado, mas o serviço 
 
 A alternativa clássica é **sessão no servidor**: após o login, o servidor guarda "sessão X = usuário Y" em memória e devolve um cookie.
 
-O problema aparece na fase 3, com **duas instâncias da API atrás de um load balancer**:
+O problema aparece com **duas instâncias da API atrás de um load balancer**, exatamente o cenário deste projeto (`api-1` e `api-2` atrás do gateway nginx):
 
 | Sessão em memória | JWT stateless |
 |-------------------|---------------|

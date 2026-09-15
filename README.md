@@ -1,6 +1,6 @@
 # distr-arch-todo-list
 
-API REST de lista de tarefas com cadastro, login via **JWT** e controle de acesso por papéis (**ADMIN** / **USER**), construída como trabalho da disciplina de Arquitetura Distribuída.
+API REST de lista de tarefas com cadastro, login via **JWT** e controle de acesso por papéis (**ADMIN** / **USER**), servida por **duas réplicas** atrás de um **API Gateway nginx** com rate limit e load balancer. Construída como trabalho da disciplina de Arquitetura Distribuída.
 
 A aplicação inteira sobe com um único comando (`docker compose up`), sem nenhum passo manual.
 
@@ -12,6 +12,7 @@ A aplicação inteira sobe com um único comando (`docker compose up`), sem nenh
 - [Início rápido](#início-rápido)
 - [Primeiros passos com a API](#primeiros-passos-com-a-api)
 - [Endpoints](#endpoints)
+- [Gateway: load balancer e rate limit](#gateway-load-balancer-e-rate-limit)
 - [Configuração](#configuração)
 - [Rodando a API fora do Docker](#rodando-a-api-fora-do-docker)
 - [Testes](#testes)
@@ -26,7 +27,7 @@ A aplicação inteira sobe com um único comando (`docker compose up`), sem nenh
 | 0    | Monorepo Maven multi-módulo, PostgreSQL no Docker Compose         | Concluída  |
 | 1    | CRUD de tarefas, migrations Flyway, Dockerfile da API             | Concluída  |
 | 2    | Cadastro, login JWT e controle de acesso ADMIN/USER               | Concluída  |
-| 3    | API Gateway nginx com rate limit e load balancer                  | Planejada  |
+| 3    | API Gateway nginx com rate limit e load balancer                  | Concluída  |
 | 4    | RabbitMQ, notification-worker e reset de senha por email          | Planejada  |
 | 5    | Documentação OpenAPI completa                                     | Planejada  |
 | 6    | Ajustes finais e documentação de entrega                          | Planejada  |
@@ -35,7 +36,7 @@ A aplicação inteira sobe com um único comando (`docker compose up`), sem nenh
 
 O enunciado pede exatamente 2 de 3 opções. Foram escolhidas:
 
-- **(a) API Gateway com Rate Limit e Load Balancer**: nginx na frente de duas instâncias da API *(fase 3)*.
+- **(a) API Gateway com Rate Limit e Load Balancer**: nginx como porta de entrada única, distribuindo as requisições entre `api-1` e `api-2` e limitando requisições por IP. Ver [Gateway](#gateway-load-balancer-e-rate-limit).
 - **(b) Mensageria com RabbitMQ**: a API publica eventos e o `notification-worker` consome e envia emails, usando as filas `email.password-reset` (código de 6 dígitos para redefinir senha) e `email.welcome` *(fase 4)*.
 
 ## Stack
@@ -47,10 +48,11 @@ O enunciado pede exatamente 2 de 3 opções. Foram escolhidas:
 | Banco de dados   | PostgreSQL 17                                |
 | Migrations       | Flyway                                       |
 | Autenticação     | JWT (HS256) com Spring Security OAuth2 Resource Server |
+| API Gateway      | nginx 1.30                                   |
 | Documentação     | springdoc-openapi (Swagger UI)               |
 | Testes           | JUnit 5, MockMvc, Testcontainers             |
 | Infraestrutura   | Docker, Docker Compose                       |
-| Planejado        | nginx, RabbitMQ, Mailpit                     |
+| Planejado        | RabbitMQ, Mailpit                            |
 
 ## Início rápido
 
@@ -77,20 +79,26 @@ O primeiro build baixa as dependências Maven e as imagens base, então pode lev
 docker compose ps
 ```
 
-Os dois serviços devem aparecer como `healthy`:
+Os quatro serviços devem aparecer como `healthy`. Só o `gateway` e o `postgres` publicam porta no host; as réplicas da API ficam acessíveis apenas pelo gateway:
 
 ```
-postgres | Up (healthy) | 0.0.0.0:5432->5432/tcp
-api      | Up (healthy) | 0.0.0.0:8080->8080/tcp
+SERVICE    STATUS            PORTS
+api-1      Up (healthy)      8080/tcp
+api-2      Up (healthy)      8080/tcp
+gateway    Up (healthy)      0.0.0.0:8080->80/tcp
+postgres   Up (healthy)      0.0.0.0:5432->5432/tcp
 ```
 
 ### 4. Acessar
+
+Tudo passa pelo gateway, na porta 8080:
 
 | O quê                  | URL                                         |
 |------------------------|---------------------------------------------|
 | Swagger UI             | http://localhost:8080/swagger-ui.html       |
 | Especificação OpenAPI  | http://localhost:8080/v3/api-docs           |
-| Health check           | http://localhost:8080/actuator/health       |
+| Health da API          | http://localhost:8080/actuator/health       |
+| Health do gateway      | http://localhost:8080/gateway/health        |
 | Base da API            | http://localhost:8080/api                   |
 
 ### Parar
@@ -196,6 +204,71 @@ Referência completa, com corpo das requisições, validações, exemplos de res
 
 Como o JWT funciona nesta API (estrutura do token, validação, papéis e limitações): [docs/AUTENTICACAO.md](docs/AUTENTICACAO.md).
 
+## Gateway: load balancer e rate limit
+
+```mermaid
+flowchart LR
+  C[Cliente] -->|:8080| G[gateway<br/>nginx]
+  G -->|least_conn| A1[api-1]
+  G -->|least_conn| A2[api-2]
+  A1 & A2 --> PG[(PostgreSQL)]
+```
+
+**Load balancer**
+
+- As requisições são distribuídas entre `api-1` e `api-2` pelo algoritmo `least_conn` (vai para a réplica com menos conexões ativas).
+- Se uma réplica cai, o gateway para de enviar requisições para ela e usa a outra (*failover*), sem o cliente perceber.
+- Toda resposta da API traz o header **`X-Instance-Id`** dizendo qual réplica atendeu.
+- Qualquer réplica aceita o token emitida por qualquer outra, porque o JWT é stateless e todas usam o mesmo `JWT_SECRET`.
+
+**Rate limit** (por IP, antes de a requisição chegar à API)
+
+| Rotas | Limite | Rajada tolerada |
+|-------|--------|-----------------|
+| `POST /api/auth/login`, `POST /api/auth/register` | 10 por minuto | 5 extras |
+| Todas as demais | 10 por segundo | 20 extras |
+
+Ao exceder o limite, o gateway responde `429 Too Many Requests`.
+
+Detalhes e justificativas das escolhas: [docs/ARQUITETURA.md](docs/ARQUITETURA.md#5-api-gateway-com-nginx).
+
+### Demonstrações
+
+**Balanceamento:** envia 10 requisições e mostra qual réplica atendeu cada uma.
+
+```bash
+bash scripts/lb-demo.sh
+```
+```powershell
+.\scripts\lb-demo.ps1
+```
+
+**Rate limit:** faz 15 tentativas de login seguidas; as primeiras chegam à API (`401`, senha errada) e o restante é bloqueado pelo gateway (`429`).
+
+```bash
+bash scripts/rate-limit-demo.sh
+```
+```powershell
+.\scripts\rate-limit-demo.ps1
+```
+
+> Se o PowerShell bloquear a execução de scripts, rode antes, só para a sessão atual: `Set-ExecutionPolicy -Scope Process Bypass`.
+
+**Failover:** derruba uma réplica e mostra que a API continua respondendo pela outra.
+
+```bash
+docker compose stop api-1
+bash scripts/lb-demo.sh          # todas as respostas vêm da api-2
+docker compose start api-1       # aguarde ficar healthy (docker compose ps)
+bash scripts/lb-demo.sh          # volta a alternar
+```
+
+**Logs do gateway:** cada linha mostra a réplica que atendeu (`upstream=`) e se o rate limit agiu (`rate_limit=`).
+
+```bash
+docker compose logs -f gateway
+```
+
 ## Configuração
 
 ### Variáveis de ambiente
@@ -212,7 +285,7 @@ cp .env.example .env
 | `POSTGRES_USER`     | `todolist`                                 | Usuário do banco                                         |
 | `POSTGRES_PASSWORD` | `todolist`                                 | Senha do banco                                           |
 | `POSTGRES_PORT`     | `5432`                                     | Porta do Postgres exposta no host                        |
-| `API_PORT`          | `8080`                                     | Porta da API exposta no host                             |
+| `GATEWAY_PORT`      | `8080`                                     | Porta do gateway exposta no host (entrada da aplicação)  |
 | `JWT_SECRET`        | `dev-only-jwt-secret-change-me-0123456789` | Chave que assina os tokens (mínimo 32 caracteres)        |
 
 > As credenciais do banco só são aplicadas quando o volume é criado pela primeira vez. Se mudar `POSTGRES_USER` ou `POSTGRES_PASSWORD` depois, é preciso recriar o volume com `docker compose down -v`, o que apaga os dados.
@@ -231,27 +304,27 @@ $bytes = New-Object byte[] 32
 [Convert]::ToBase64String($bytes)
 ```
 
-Todas as instâncias da API precisam usar **o mesmo** valor. Senão, um token emitido por uma instância é recusado pela outra.
+As duas réplicas recebem automaticamente o mesmo valor pelo compose. Se fossem diferentes, um token emitido pela `api-1` seria recusado pela `api-2`.
 
 ### Portas
 
-| Serviço    | Porta no host | Observação                                              |
-|------------|---------------|---------------------------------------------------------|
-| API        | 8080          | Acesso direto; na fase 3 o nginx passa a ser a entrada |
-| PostgreSQL | 5432          | Útil para inspecionar o banco (pgAdmin, DBeaver, psql) |
+| Serviço          | Porta no host | Observação                                              |
+|------------------|---------------|---------------------------------------------------------|
+| gateway          | 8080          | Única entrada da aplicação                              |
+| api-1, api-2     | nenhuma       | Acessíveis apenas pelo gateway, na rede interna do Docker |
+| postgres         | 5432          | Útil para inspecionar o banco (pgAdmin, DBeaver, psql)  |
 
 Para conectar um cliente de banco: host `127.0.0.1`, porta `5432`, banco/usuário/senha `todolist`.
 
 ## Rodando a API fora do Docker
 
-Útil para depurar pela IDE.
+Útil para depurar pela IDE. Como o gateway ocupa a porta 8080, rode a API local em outra porta:
 
 ```bash
-docker compose stop api           # libera a porta 8080
-docker compose up -d postgres     # garante o banco rodando
+docker compose up -d postgres
 ```
 
-Depois rode a classe `com.todolist.api.ApiApplication` pela IDE. O `application.yaml` já aponta para `localhost:5432` com as credenciais padrão.
+Depois rode a classe `com.todolist.api.ApiApplication` pela IDE com a variável de ambiente `SERVER_PORT=8081`. O `application.yaml` já aponta para `localhost:5432` com as credenciais padrão. Essa instância é acessada diretamente em `http://localhost:8081`, sem passar pelo gateway.
 
 ## Testes
 
@@ -266,12 +339,15 @@ Requer o Docker em execução. Os testes usam **Testcontainers**, que sobe um Po
 | `AuthControllerTests`      | Cadastro sempre como USER, email duplicado, validação, login, token em `/me`, mesma resposta para senha errada e email inexistente, login do admin semeado |
 | `TodoControllerTests`      | CRUD, filtro e paginação, 401 sem token ou com token inválido, isolamento entre usuários, visão do ADMIN, `sort` fora da lista permitida |
 | `AdminUserControllerTests` | 403 para USER, listagem, troca de papel, remoção em cascata, admin não altera nem remove a si mesmo |
+| `GatewayHeadersTests`      | Header `X-Instance-Id` em todas as respostas (inclusive erros) e header `Location` usando o endereço do gateway |
 
 Para rodar só uma classe:
 
 ```bash
 ./mvnw -pl services/api verify -Dtest=TodoControllerTests
 ```
+
+O comportamento do gateway (balanceamento, rate limit e failover) é verificado com os [scripts de demonstração](#demonstrações) contra a aplicação rodando.
 
 ## Estrutura do repositório
 
@@ -287,7 +363,9 @@ Para rodar só uma classe:
 ├── http/
 │   └── api.http                    # requisições prontas (VS Code REST Client)
 ├── infra/
+│   ├── nginx/                      # API Gateway: Dockerfile + nginx.conf
 │   └── postgres/Dockerfile
+├── scripts/                        # demonstrações de load balancer e rate limit (Bash e PowerShell)
 ├── libs/
 │   └── messaging-contracts/        # eventos compartilhados entre api e worker (fase 4)
 └── services/
@@ -306,9 +384,12 @@ Para rodar só uma classe:
 | Sintoma | Causa e solução |
 |---------|-----------------|
 | `failed to connect to the docker API` | O Docker Desktop não está aberto. Abra-o e aguarde ficar pronto. |
-| `Bind for 0.0.0.0:5432 failed: port is already allocated` | Outro Postgres (ou outro container) já usa a porta. Crie um `.env` com `POSTGRES_PORT=5433` (ou `API_PORT=8081` se o conflito for na 8080). |
-| Container `api` fica `unhealthy` | Veja o motivo com `docker compose logs api`. |
-| `Migration checksum mismatch` nos logs | Uma migration já aplicada foi alterada. Migrations são imutáveis; em ambiente de desenvolvimento, recrie o banco com `docker compose down -v` (apaga os dados). |
+| `port is already allocated` na 5432 ou na 8080 | Outro processo ou container já usa a porta. Crie um `.env` com `POSTGRES_PORT=5433` ou `GATEWAY_PORT=8081`. |
+| `port is already allocated` na 8080 logo após atualizar o projeto | Um container antigo `api` (de antes do gateway) ainda está rodando. Suba com `docker compose up -d --build --remove-orphans`. |
+| `api-1` ou `api-2` fica `unhealthy` | Veja o motivo com `docker compose logs api-1`. O gateway só sobe depois que as duas réplicas estão saudáveis. |
+| `Migration checksum mismatch` nos logs | Uma migration já aplicada foi alterada (inclusive só um comentário). Migrations são imutáveis; em ambiente de desenvolvimento, recrie o banco com `docker compose down -v` (apaga os dados). |
+| `429 Too Many Requests` | O rate limit do gateway agiu. No login e cadastro, o limite é de 10 por minuto: aguarde alguns segundos. |
+| `503 Service Unavailable` vindo do gateway | Nenhuma réplica está de pé. Confira com `docker compose ps`. |
 | `401 Unauthorized` com token | O token expirou (validade de 1h), foi copiado incompleto, ou foi colado com `Bearer` duplicado no Swagger. Faça login de novo. |
 | `403 Forbidden` depois de virar ADMIN | O papel fica gravado dentro do token. Faça login de novo para receber um token com o papel atualizado. |
 | pgAdmin recusa a senha correta | Use `127.0.0.1` em vez de `localhost` como host. |
@@ -318,4 +399,4 @@ Para rodar só uma classe:
 
 - [docs/API.md](docs/API.md): referência de todos os endpoints, com exemplos reais de requisição e resposta.
 - [docs/AUTENTICACAO.md](docs/AUTENTICACAO.md): como o JWT é emitido e validado, papéis, proteções e limitações.
-- [docs/ARQUITETURA.md](docs/ARQUITETURA.md): decisões de arquitetura e justificativas.
+- [docs/ARQUITETURA.md](docs/ARQUITETURA.md): decisões de arquitetura e justificativas, incluindo o gateway.
