@@ -15,7 +15,11 @@ spring:
       pageable:
         max-page-size: 100
 
+server:
+  forward-headers-strategy: framework
+
 app:
+  instance-id: ${INSTANCE_ID:local}
   jwt:
     secret: ${JWT_SECRET:dev-only-jwt-secret-change-me-0123456789}
     issuer: todolist-api

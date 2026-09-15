@@ -29,7 +29,8 @@ Todos os exemplos de resposta abaixo foram capturados da API rodando via `docker
 
 | Item              | Regra |
 |-------------------|-------|
-| URL base          | `http://localhost:8080` (na fase 3, o nginx passa a ser a entrada) |
+| URL base          | `http://localhost:8080`, o gateway nginx. As réplicas da API não ficam expostas diretamente |
+| Instância         | Toda resposta que chega à API traz o header `X-Instance-Id` (`api-1` ou `api-2`), indicando qual réplica atendeu |
 | Formato           | JSON (`Content-Type: application/json`) |
 | Autenticação      | Header `Authorization: Bearer <accessToken>` |
 | Identificadores   | UUID, ex.: `bd9a46ec-8849-49c2-8e39-5e82a1271e97` |
@@ -572,5 +573,26 @@ Todos os erros seguem o padrão [RFC 9457 – Problem Details for HTTP APIs](htt
 | 404    | `Resource not found`      | Recurso não existe ou pertence a outro usuário |
 | 409    | `Conflict`                | Email já cadastrado |
 | 422    | `Business rule violation` | Regra de negócio violada (ex.: admin alterando o próprio papel) |
+| 429    | `Too Many Requests`       | Gerado pelo **gateway**: limite de requisições por IP excedido (ver abaixo) |
+| 503    | `Service Unavailable`     | Gerado pelo **gateway**: nenhuma réplica da API está disponível |
+
+### Limites de requisição (rate limit)
+
+Aplicados pelo gateway nginx, por endereço IP, antes de a requisição chegar à API:
+
+| Rotas | Limite | Rajada tolerada |
+|-------|--------|-----------------|
+| `POST /api/auth/login`, `POST /api/auth/register` | 10 por minuto | 5 requisições extras imediatas |
+| Todas as demais | 10 por segundo | 20 requisições extras imediatas |
+
+Ao exceder o limite, o gateway responde sem repassar a requisição para a API (por isso a resposta não traz `X-Instance-Id`):
+
+```json
+{
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "Rate limit exceeded, try again later"
+}
+```
 
 As mensagens de validação (`errors`) vêm do Bean Validation e seguem o idioma da JVM: em inglês no container Docker, podendo sair em português ao rodar pela IDE numa máquina configurada em pt-BR.
