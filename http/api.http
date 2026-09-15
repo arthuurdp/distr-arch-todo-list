@@ -47,6 +47,27 @@ Content-Type: application/json
 GET {{baseUrl}}/api/auth/me
 Authorization: Bearer {{userToken}}
 
+# Redefinição de senha (o código chega por email: abra o Mailpit em http://localhost:8025)
+
+### Pedir código de redefinição (sempre responde 202, mesmo para email inexistente)
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "test@gmail.com"
+}
+
+### Redefinir a senha (troque "code" pelo código recebido no Mailpit)
+# Depois disso, "Login como USER" precisa usar a nova senha.
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "test@gmail.com",
+  "code": "123456",
+  "newPassword": "NewPassword123!"
+}
+
 # Tarefas (como USER)
 
 ### Criar tarefa

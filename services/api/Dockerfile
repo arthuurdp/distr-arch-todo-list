@@ -10,7 +10,7 @@ COPY libs libs
 COPY services/api services/api
 COPY services/notification-worker/pom.xml services/notification-worker/pom.xml
 
-RUN --mount=type=cache,target=/root/.m2 \
+RUN --mount=type=cache,target=/root/.m2,sharing=locked \
     chmod +x mvnw && \
     ./mvnw -B -q -pl services/api -am package -DskipTests
 

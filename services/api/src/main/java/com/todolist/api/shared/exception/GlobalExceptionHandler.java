@@ -43,6 +43,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem(HttpStatus.UNAUTHORIZED, "Invalid credentials", ex.getMessage());
 	}
 
+	@ExceptionHandler(InvalidPasswordResetCodeException.class)
+	ProblemDetail handleInvalidPasswordResetCode(InvalidPasswordResetCodeException ex) {
+		return problem(HttpStatus.BAD_REQUEST, "Invalid password reset code", ex.getMessage());
+	}
+
 	@ExceptionHandler(AuthenticationException.class)
 	ProblemDetail handleAuthentication(AuthenticationException ex) {
 		return problem(HttpStatus.UNAUTHORIZED, "Unauthorized", "Authentication is required to access this resource");
