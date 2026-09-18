@@ -201,10 +201,8 @@ Configuração: [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf).
 |-----------|--------------|--------|
 | Algoritmo | `least_conn` | Cada requisição vai para a réplica com menos conexões ativas. Em empate, alterna entre elas |
 | Health check passivo | `max_fails=3 fail_timeout=10s` | Após 3 falhas, a réplica é ignorada por 10 segundos e depois volta a ser tentada |
-| Failover | `proxy_next_upstream error timeout http_502 http_503` | Se uma réplica não aceita a conexão, a mesma requisição é reenviada para a outra, sem o cliente perceber |
-| Detecção rápida | `proxy_connect_timeout 2s` | Uma réplica que não responde é considerada fora do ar em 2 segundos |
-| DNS dinâmico | `resolver 127.0.0.11` + `resolve` | O nginx acompanha o IP de uma réplica que reinicia, sem precisar reiniciar o gateway |
-| Conexões reaproveitadas | `keepalive 32` | Evita abrir uma conexão TCP nova com a API a cada requisição |
+| Failover | Comportamento padrão do nginx (`proxy_next_upstream error timeout`) | Se uma réplica não aceita a conexão, a mesma requisição é reenviada para a outra, sem o cliente perceber |
+| Detecção rápida | `proxy_connect_timeout 2s` | Uma réplica que não responde é considerada fora do ar em 2 segundos (o padrão seria 60s) |
 
 **Por que `least_conn` e não round robin?** O round robin distribui por ordem, sem considerar que algumas requisições (como login, que roda BCrypt) demoram mais. O `least_conn` direciona para quem está mais livre.
 
@@ -220,7 +218,7 @@ Para ver o balanceamento acontecendo, toda resposta da API traz o header `X-Inst
 | `api_general` | Todas | 10 por segundo por IP | 20 |
 
 - **Algoritmo:** *leaky bucket*. As requisições "vazam" na taxa configurada; a rajada (`burst`) permite absorver picos curtos, e o `nodelay` atende essas requisições extras imediatamente em vez de enfileirá-las. Passando disso, o gateway responde `429`.
-- **Rotas de autenticação têm limite mais restrito** para dificultar força bruta de senhas e de códigos de redefinição, e o disparo de emails em massa. As duas zonas se aplicam a elas ao mesmo tempo.
+- **Rotas de autenticação têm limite mais restrito** para dificultar força bruta de senhas e de códigos de redefinição, e o disparo de emails em massa.
 - **O `429` sai em Problem Details**, no mesmo formato JSON dos erros da API.
 
 **Por que rate limit no gateway e não na API?**
@@ -337,7 +335,7 @@ Servidor SMTP de desenvolvimento que captura todos os emails e os exibe numa cai
 
 ### 7. Erros no padrão RFC 9457 (Problem Details)
 
-- Todo erro sai no mesmo formato JSON (`title`, `status`, `detail`, `instance`): os da API, os `401`/`403` gerados pelo Spring Security antes de chegar ao controller, e os `429`/`503` gerados pelo próprio gateway.
+- Todo erro sai no mesmo formato JSON (`title`, `status`, `detail`, `instance`): os da API, os `401`/`403` gerados pelo Spring Security antes de chegar ao controller, e o `429` gerado pelo próprio gateway.
 - **Por quê:** o cliente trata erros de um único jeito, e o formato é um padrão da IETF suportado nativamente pelo Spring.
 
 ### 8. Paginação com contrato próprio e ordenação por lista permitida

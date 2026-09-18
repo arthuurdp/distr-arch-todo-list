@@ -21,18 +21,6 @@ A aplicação inteira sobe com um único comando (`docker compose up`), sem nenh
 - [Solução de problemas](#solução-de-problemas)
 - [Documentação detalhada](#documentação-detalhada)
 
-## Status do projeto
-
-| Fase | Conteúdo                                                          | Status     |
-|------|-------------------------------------------------------------------|------------|
-| 0    | Monorepo Maven multi-módulo, PostgreSQL no Docker Compose         | Concluída  |
-| 1    | CRUD de tarefas, migrations Flyway, Dockerfile da API             | Concluída  |
-| 2    | Cadastro, login JWT e controle de acesso ADMIN/USER               | Concluída  |
-| 3    | API Gateway nginx com rate limit e load balancer                  | Concluída  |
-| 4    | RabbitMQ, notification-worker e redefinição de senha por email    | Concluída  |
-| 5    | Documentação OpenAPI completa                                     | Planejada  |
-| 6    | Ajustes finais e documentação de entrega                          | Planejada  |
-
 ## Opções escolhidas do trabalho
 
 O enunciado pede exatamente 2 de 3 opções. Foram escolhidas:
@@ -332,6 +320,17 @@ A mensagem é consumida e o email aparece no Mailpit.
 
 **Falha no envio: retry e fila de mensagens mortas (DLQ)**
 
+O script faz todos os passos de uma vez: para o Mailpit, cadastra um usuário, aguarda a mensagem cair na DLQ e religa o Mailpit.
+
+```bash
+bash scripts/dlq-demo.sh
+```
+```powershell
+.\scripts\dlq-demo.ps1
+```
+
+Passo a passo, manualmente:
+
 ```bash
 docker compose stop mailpit
 ```
@@ -491,7 +490,7 @@ O comportamento do gateway (balanceamento, rate limit e failover) é verificado 
 | Email não chegou no Mailpit | Veja `docker compose logs notification-worker` e o painel do RabbitMQ: a mensagem pode estar parada na fila (worker fora) ou na `.dlq` (falha no envio). O código de redefinição também não é enviado para emails não cadastrados. |
 | `400 Invalid password reset code` | Código errado, expirado (15 min), já usado, substituído por um pedido mais novo ou bloqueado após 5 tentativas. Peça um novo em `forgot-password`. |
 | `429 Too Many Requests` | O rate limit do gateway agiu. Em login, cadastro e redefinição de senha, o limite é de 10 por minuto: aguarde alguns segundos. |
-| `503 Service Unavailable` vindo do gateway | Nenhuma réplica da API está de pé. Confira com `docker compose ps`. |
+| `502 Bad Gateway` vindo do gateway | Nenhuma réplica da API está de pé. Confira com `docker compose ps`. |
 | `401 Unauthorized` com token | O token expirou (validade de 1h), foi copiado incompleto, ou foi colado com `Bearer` duplicado no Swagger. Faça login de novo. |
 | `403 Forbidden` depois de virar ADMIN | O papel fica gravado dentro do token. Faça login de novo para receber um token com o papel atualizado. |
 | Testes falham com `NoClassDefFoundError` depois de editar código na IDE | O compilador da IDE pode gravar classes em `target/` durante a edição. Rode `./mvnw clean verify`. |

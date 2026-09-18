@@ -8,10 +8,6 @@ import com.todolist.contracts.event.PasswordResetRequestedEvent;
 import com.todolist.contracts.event.UserRegisteredEvent;
 import com.todolist.worker.email.EmailService;
 
-/**
- * RabbitMQ consumer, one listener per queue. A message is acknowledged only when the method returns; an exception
- * triggers the retries configured in application.yaml and, after the last one, the dead-letter queue.
- */
 @Component
 public class NotificationListener {
 	private final EmailService emailService;

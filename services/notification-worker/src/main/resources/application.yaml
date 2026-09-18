@@ -4,8 +4,6 @@ spring:
   rabbitmq:
     listener:
       simple:
-        # A failing message is tried 3 times in total (1 attempt + 2 retries, waiting 1s and then 2s).
-        # After that it is rejected without requeue, and RabbitMQ moves it to the queue's dead-letter queue.
         default-requeue-rejected: false
         retry:
           enabled: true
@@ -15,8 +13,6 @@ spring:
   mail:
     host: localhost
     port: 1025
-    # JavaMail has no timeouts by default: an unreachable SMTP server would block the consumer forever instead of
-    # failing, so retries and the dead-letter queue would never kick in.
     properties:
       "[mail.smtp.connectiontimeout]": 5000
       "[mail.smtp.timeout]": 5000
@@ -33,5 +29,4 @@ management:
         include: health
   health:
     mail:
-      # The worker stays healthy while the SMTP server is down: failed emails are retried and then dead-lettered.
       enabled: false

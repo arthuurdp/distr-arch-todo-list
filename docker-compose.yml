@@ -1,6 +1,5 @@
 name: distr-arch-todo-list
 
-# Shared definition of the API. api-1 and api-2 are two replicas of the same service, reachable only through the gateway.
 x-api: &api
   build:
     context: .
@@ -90,7 +89,7 @@ services:
     environment:
       <<: *api-environment
       INSTANCE_ID: api-2
-
+      
   notification-worker:
     build:
       context: .

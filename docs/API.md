@@ -669,7 +669,7 @@ Todos os erros seguem o padrão [RFC 9457 – Problem Details for HTTP APIs](htt
 | 409    | `Conflict`                    | Email já cadastrado |
 | 422    | `Business rule violation`     | Regra de negócio violada (ex.: admin alterando o próprio papel) |
 | 429    | `Too Many Requests`           | Gerado pelo **gateway**: limite de requisições por IP excedido (ver abaixo) |
-| 503    | `Service Unavailable`         | Gerado pelo **gateway**: nenhuma réplica da API está disponível |
+| 502    | —                             | Gerado pelo **gateway** (página padrão do nginx): nenhuma réplica da API está disponível |
 
 ### Limites de requisição (rate limit)
 
