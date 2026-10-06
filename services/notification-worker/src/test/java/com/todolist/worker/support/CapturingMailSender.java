@@ -8,9 +8,6 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import jakarta.mail.internet.MimeMessage;
 
-/**
- * Keeps sent emails in memory instead of talking to an SMTP server, and can simulate the server being down.
- */
 public class CapturingMailSender extends JavaMailSenderImpl {
 	private final List<MimeMessage> sentMessages = new CopyOnWriteArrayList<>();
 	private volatile boolean unavailable;

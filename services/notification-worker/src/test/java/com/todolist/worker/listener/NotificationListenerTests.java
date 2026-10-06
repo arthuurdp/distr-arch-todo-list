@@ -24,10 +24,6 @@ import com.todolist.worker.support.CapturingMailSenderConfiguration;
 
 import jakarta.mail.internet.MimeMessage;
 
-/**
- * Covers the consumer side against a real RabbitMQ: events published to the exchange become emails, and a message
- * that keeps failing ends up in the dead-letter queue.
- */
 @SpringBootTest(properties = "spring.rabbitmq.listener.simple.retry.initial-interval=100ms")
 @Import({ TestcontainersConfiguration.class, CapturingMailSenderConfiguration.class })
 class NotificationListenerTests {

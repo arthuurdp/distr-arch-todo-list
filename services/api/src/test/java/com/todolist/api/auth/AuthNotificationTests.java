@@ -24,10 +24,6 @@ import com.todolist.contracts.NotificationTopology;
 import com.todolist.contracts.event.PasswordResetRequestedEvent;
 import com.todolist.contracts.event.UserRegisteredEvent;
 
-/**
- * Covers the producer side: the API publishes the right events to RabbitMQ, and the password reset flow works with
- * the code carried by the published event. The worker is not involved; messages are read straight from the queues.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({ TestcontainersConfiguration.class, AuthTestSupport.class })
