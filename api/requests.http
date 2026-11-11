@@ -1,0 +1,116 @@
+@baseUrl = http://localhost:3000/api
+
+### Cadastro
+POST {{baseUrl}}/users/register
+Content-Type: application/json
+
+{
+  "name": "Ana Teste",
+  "email": "ana@teste.com",
+  "password": "Senha@123"
+}
+
+### Login (guarda o token para as próximas requisições)
+# @name login
+POST {{baseUrl}}/users/login
+Content-Type: application/json
+
+{
+  "email": "ana@teste.com",
+  "password": "Senha@123"
+}
+
+###
+@token = {{login.response.body.token}}
+
+### Usuário autenticado
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{token}}
+
+### Rota protegida sem token (401)
+GET {{baseUrl}}/todos
+
+### Criar categoria
+# @name category
+POST {{baseUrl}}/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Faculdade"
+}
+
+###
+@categoryId = {{category.response.body.id}}
+
+### Listar categorias
+GET {{baseUrl}}/categories
+Authorization: Bearer {{token}}
+
+### Renomear categoria
+PUT {{baseUrl}}/categories/{{categoryId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Universidade"
+}
+
+### Criar tarefa na categoria
+# @name todo
+POST {{baseUrl}}/todos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Entregar o trabalho de React",
+  "description": "Zip com API e front-end no Moodle",
+  "dueDate": "2026-12-01",
+  "categoryId": {{categoryId}}
+}
+
+###
+@todoId = {{todo.response.body.id}}
+
+### Relacionamento: tarefas de uma categoria
+GET {{baseUrl}}/categories/{{categoryId}}/todos
+Authorization: Bearer {{token}}
+
+### Listar tarefas (filtros opcionais: completed, categoryId)
+GET {{baseUrl}}/todos?completed=false
+Authorization: Bearer {{token}}
+
+### Buscar tarefa
+GET {{baseUrl}}/todos/{{todoId}}
+Authorization: Bearer {{token}}
+
+### Atualizar tarefa
+PUT {{baseUrl}}/todos/{{todoId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Entregar o trabalho de React",
+  "description": "Enviado",
+  "dueDate": "2026-12-01",
+  "categoryId": {{categoryId}},
+  "completed": true
+}
+
+### Erro de validação (400)
+POST {{baseUrl}}/todos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "",
+  "dueDate": "01/12/2026"
+}
+
+### Excluir tarefa
+DELETE {{baseUrl}}/todos/{{todoId}}
+Authorization: Bearer {{token}}
+
+### Excluir categoria
+DELETE {{baseUrl}}/categories/{{categoryId}}
+Authorization: Bearer {{token}}
