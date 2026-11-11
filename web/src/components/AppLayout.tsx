@@ -36,8 +36,8 @@ function MainNav({ className }: { className?: string }) {
             cn(
               'rounded-md px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50',
               isActive
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                ? 'bg-secondary text-secondary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             )
           }
         >
@@ -95,10 +95,10 @@ export function AppLayout() {
       </main>
 
       <footer className="border-t bg-card">
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-1 px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <p>Lista de tarefas com API em Node.js e front-end em React.</p>
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-1 px-4 py-4 text-sm text-muted-foreground sm:flex-row text-center lg:justify-between">
+          <p>Lista de tarefas feita com Node.js e React.</p>
           <Link to="/sobre" className="underline-offset-4 hover:text-foreground hover:underline">
-            Quem fez
+            Quem fez?
           </Link>
         </div>
       </footer>

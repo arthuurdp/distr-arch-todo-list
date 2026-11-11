@@ -3,9 +3,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { members } from '@/data/members'
 
 const stack = [
-  { area: 'API', items: 'Node.js, Express, SQLite e autenticação com JWT' },
-  { area: 'Front-end', items: 'React, Vite, Tailwind CSS e componentes shadcn/ui' },
-  { area: 'Testes', items: 'Vitest com Supertest na API e Playwright no front-end' },
+  { area: 'API', items: 'Node, Express, SQLite e autenticação com JWT' },
+  { area: 'Front-end', items: 'React, Vite, Tailwind e shadcn/ui' },
+  { area: 'Testes', items: 'Vitest com Supertest na API e Playwright no front' },
 ]
 
 function initials(name: string) {
@@ -22,7 +22,7 @@ export function AboutPage() {
         categorias, marca o que já concluiu e acompanha os prazos.
       </p>
 
-      <h2 className="mt-10 text-xl font-semibold">Quem fez</h2>
+      <h2 className="mt-10 text-xl font-semibold">Desenvolvido por</h2>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {members.map((member) => (
           <li key={member.name}>

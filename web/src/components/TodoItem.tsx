@@ -50,10 +50,7 @@ export function TodoItem({ todo, onToggle, onEdit, onDelete }: TodoItemProps) {
               </Badge>
             )}
             {todo.dueDate && (
-              <Badge
-                variant="outline"
-                className={cn(overdue && 'border-transparent bg-marker text-marker-foreground')}
-              >
+              <Badge variant={overdue ? 'destructive' : 'outline'}>
                 <CalendarIcon />
                 {overdue ? 'Venceu em' : 'Até'} {formatDate(todo.dueDate)}
               </Badge>
