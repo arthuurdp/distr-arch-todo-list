@@ -89,6 +89,6 @@ test.describe('autenticação', () => {
     await page.getByRole('navigation', { name: 'Principal' }).getByRole('link', { name: 'Sobre' }).click()
 
     await expect(page).toHaveURL('/sobre')
-    await expect(page.getByRole('heading', { name: 'Quem fez' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Desenvolvido por' })).toBeVisible()
   })
 })
