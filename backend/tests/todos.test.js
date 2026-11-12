@@ -136,6 +136,13 @@ describe('GET /api/todos', () => {
     expect(res.status).toBe(400);
     expect(res.body.details).toEqual({ completed: 'Use true ou false' });
   });
+
+  it('recusa categoria inválida no filtro', async () => {
+    const res = await api.get('/api/todos?categoryId=abc').set(auth);
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toEqual({ categoryId: 'Categoria inválida' });
+  });
 });
 
 describe('GET /api/todos/:id', () => {

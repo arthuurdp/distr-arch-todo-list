@@ -1,6 +1,6 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
-import { createDb } from './db.js';
+import { createDb } from './database.js';
 
 const app = createApp(createDb(config.dbFile));
 

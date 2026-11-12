@@ -16,7 +16,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command: 'npm --prefix ../api run start',
+      command: 'npm --prefix ../backend run start',
       url: `http://localhost:${API_PORT}/api/health`,
       env: { PORT: String(API_PORT), DB_FILE: ':memory:' },
       reuseExistingServer: false,

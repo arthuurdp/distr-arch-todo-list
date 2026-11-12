@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../src/app.js';
-import { createDb } from '../src/db.js';
+import { createDb } from '../src/database.js';
 
 export function createTestApi() {
   return request(createApp(createDb(':memory:')));

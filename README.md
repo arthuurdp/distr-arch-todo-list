@@ -17,7 +17,7 @@ Aplicação completa de lista de tarefas: uma **API RESTful em Node.js** com aut
 Em um terminal, suba a API:
 
 ```bash
-cd api
+cd backend
 npm install
 npm start
 ```
@@ -25,7 +25,7 @@ npm start
 Em outro terminal, suba o front-end:
 
 ```bash
-cd web
+cd frontend
 npm install
 npm run dev
 ```
@@ -46,23 +46,23 @@ O front-end chama `/api`, e o Vite repassa para a API na porta 3000.
 | `PORT`           | `3000`                      | Porta da API |
 | `JWT_SECRET`     | chave de desenvolvimento    | Chave que assina os tokens |
 | `JWT_EXPIRES_IN` | `8h`                        | Validade do token |
-| `DB_FILE`        | `api/data.sqlite`           | Arquivo do banco |
+| `DB_FILE`        | `backend/data.sqlite`           | Arquivo do banco |
 
-Para zerar os dados, apague `api/data.sqlite`.
+Para zerar os dados, apague `backend/data.sqlite`.
 
 ## Testes
 
-**API** (47 testes, banco em memória):
+**API** (48 testes, banco em memória):
 
 ```bash
-cd api
+cd backend
 npm test
 ```
 
 **Front-end** (21 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
 
 ```bash
-cd web
+cd frontend
 npx playwright install chromium
 npm run test:e2e
 ```
@@ -71,12 +71,12 @@ O Playwright sobe sozinho uma API (porta 3100, banco em memória) e um front-end
 
 | Arquivo | O que cobre |
 |---------|-------------|
-| `api/tests/users.test.js`      | Cadastro, login, token, `/me`, validações, 401 e 404 |
-| `api/tests/categories.test.js` | CRUD de categorias, `/categories/:id/todos`, isolamento entre usuários |
-| `api/tests/todos.test.js`      | CRUD de tarefas, filtros, validações, isolamento entre usuários |
-| `web/e2e/auth.spec.ts`         | Login, cadastro, token guardado e enviado, sair, rota protegida |
-| `web/e2e/todos.spec.ts`        | **CRUD inteiro de tarefas**: criar, listar, editar, concluir, filtrar, excluir |
-| `web/e2e/categories.spec.ts`   | CRUD de categorias e tarefas de uma categoria |
+| `backend/tests/users.test.js`      | Cadastro, login, token, `/me`, validações, 401 e 404 |
+| `backend/tests/categories.test.js` | CRUD de categorias, `/categories/:id/todos`, isolamento entre usuários |
+| `backend/tests/todos.test.js`      | CRUD de tarefas, filtros, validações, isolamento entre usuários |
+| `frontend/e2e/auth.spec.ts`         | Login, cadastro, token guardado e enviado, sair, rota protegida |
+| `frontend/e2e/todos.spec.ts`        | **CRUD inteiro de tarefas**: criar, listar, editar, concluir, filtrar, excluir |
+| `frontend/e2e/categories.spec.ts`   | CRUD de categorias e tarefas de uma categoria |
 
 ## Rotas da API
 
@@ -117,46 +117,65 @@ Base: `http://localhost:3000/api`. As rotas protegidas exigem o cabeçalho `Auth
 | 404 | Recurso ou rota inexistente |
 | 409 | Email ou nome de categoria já cadastrado |
 
-Todas as requisições estão prontas em [api/requests.http](api/requests.http), para a extensão [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) do VS Code.
+Todas as requisições estão prontas em [backend/requests.http](backend/requests.http), para a extensão [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) do VS Code.
 
 ## Requisitos do trabalho
 
 | Requisito | Onde está |
 |-----------|-----------|
 | Três recursos com relacionamento | `users`, `categories` e `todos`; rota `GET /categories/:id/todos` |
-| Signup, login com JWT e rotas protegidas | [api/src/routes/users.js](api/src/routes/users.js) e [api/src/middleware/auth.js](api/src/middleware/auth.js) |
-| Banco de dados | SQLite, em [api/src/db.js](api/src/db.js) |
-| Tratamento de erros | [api/src/errors.js](api/src/errors.js) e [api/src/validation.js](api/src/validation.js) |
-| Testes de todos os recursos da API | [api/tests](api/tests) |
-| Tela de login que guarda e usa o token | [web/src/pages/LoginPage.tsx](web/src/pages/LoginPage.tsx), [web/src/lib/auth.tsx](web/src/lib/auth.tsx) e [web/src/lib/api.ts](web/src/lib/api.ts) |
+| Signup, login com JWT e rotas protegidas | [backend/src/services/user.service.js](backend/src/services/user.service.js), [backend/src/services/token.service.js](backend/src/services/token.service.js) e [backend/src/middlewares/auth.middleware.js](backend/src/middlewares/auth.middleware.js) |
+| Banco de dados | SQLite, em [backend/src/database.js](backend/src/database.js) e [backend/src/repositories](backend/src/repositories) |
+| Tratamento de erros | [backend/src/middlewares/error.middleware.js](backend/src/middlewares/error.middleware.js) e [backend/src/validators](backend/src/validators) |
+| Testes de todos os recursos da API | [backend/tests](backend/tests) |
+| Tela de login que guarda e usa o token | [frontend/src/pages/LoginPage.tsx](frontend/src/pages/LoginPage.tsx), [frontend/src/lib/auth.tsx](frontend/src/lib/auth.tsx) e [frontend/src/lib/api.ts](frontend/src/lib/api.ts) |
 | Framework de UI | Tailwind CSS com shadcn/ui |
-| Layout consistente e responsivo | Cabeçalho com navegação e rodapé em [web/src/components/AppLayout.tsx](web/src/components/AppLayout.tsx) |
-| Componente de terceiro (shadcn/ui) | [web/src/components/ui](web/src/components/ui): Dialog, Alert Dialog, Sheet, Select, Tabs, Checkbox, Progress, Dropdown Menu, Sonner e outros |
-| Testes do front-end com CRUD inteiro | [web/e2e/todos.spec.ts](web/e2e/todos.spec.ts) |
-| Página sobre os membros do grupo | Página **Sobre**; os nomes ficam em [web/src/data/members.ts](web/src/data/members.ts) |
+| Layout consistente e responsivo | Cabeçalho com navegação e rodapé em [frontend/src/components/AppLayout.tsx](frontend/src/components/AppLayout.tsx) |
+| Componente de terceiro (shadcn/ui) | [frontend/src/components/ui](frontend/src/components/ui): Dialog, Alert Dialog, Sheet, Select, Tabs, Checkbox, Progress, Dropdown Menu, Sonner e outros |
+| Testes do front-end com CRUD inteiro | [frontend/e2e/todos.spec.ts](frontend/e2e/todos.spec.ts) |
+| Página sobre os membros do grupo | Página **Sobre**; os nomes ficam em [frontend/src/data/members.ts](frontend/src/data/members.ts) |
+
+## Arquitetura do backend
+
+O backend segue o padrão em camadas **Controller → Service → Repository → Model**, o mesmo usado em projetos Spring. Cada camada só conversa com a de baixo:
+
+| Camada | Pasta | Responsabilidade |
+|--------|-------|------------------|
+| Routes | `routes/` | Liga cada URL e método HTTP a um método do controller |
+| Controller | `controllers/` | Lê a requisição, valida os dados de entrada e devolve a resposta HTTP |
+| Service | `services/` | Regras de negócio: email único, dono do recurso, senha, token |
+| Repository | `repositories/` | Único lugar com SQL; devolve models |
+| Model | `models/` | Entidades `User`, `Category` e `Todo` |
+
+Os objetos são criados e ligados uns aos outros em [backend/src/app.js](backend/src/app.js) (injeção de dependência manual, pelo construtor).
 
 ## Estrutura
 
 ```
 .
-├── api/                    # API RESTful (Node.js + Express)
+├── backend/                 # API RESTful (Node.js + Express)
 │   ├── src/
-│   │   ├── server.js       # sobe o servidor
-│   │   ├── app.js          # monta o Express e as rotas
-│   │   ├── db.js           # conexão e tabelas do SQLite
-│   │   ├── routes/         # users, categories, todos
-│   │   ├── middleware/     # autenticação JWT
-│   │   ├── validation.js   # validação dos dados de entrada
-│   │   └── errors.js       # tratamento de erros
-│   ├── tests/              # testes da API
-│   └── requests.http       # requisições prontas
-└── web/                    # front-end (React + Vite)
+│   │   ├── server.js        # sobe o servidor
+│   │   ├── app.js           # monta o Express e injeta as dependências
+│   │   ├── config.js        # porta, chave JWT e arquivo do banco
+│   │   ├── database.js      # conexão e tabelas do SQLite
+│   │   ├── errors.js        # HttpError
+│   │   ├── routes/          # user, category e todo
+│   │   ├── controllers/     # entrada e saída HTTP
+│   │   ├── services/        # regras de negócio e token JWT
+│   │   ├── repositories/    # acesso ao banco
+│   │   ├── models/          # User, Category e Todo
+│   │   ├── validators/      # validação dos dados de entrada (Zod)
+│   │   └── middlewares/     # autenticação JWT e tratamento de erros
+│   ├── tests/               # testes da API
+│   └── requests.http        # requisições prontas
+└── frontend/                # front-end (React + Vite)
     ├── src/
-    │   ├── pages/          # Login, Cadastro, Tarefas, Categorias, Sobre
-    │   ├── components/     # layout, formulários e componentes shadcn/ui (ui/)
-    │   ├── lib/            # cliente da API e autenticação
-    │   └── data/           # membros do grupo
-    └── e2e/                # testes Playwright
+    │   ├── pages/           # Login, Cadastro, Tarefas, Categorias, Sobre
+    │   ├── components/      # layout, formulários e componentes shadcn/ui (ui/)
+    │   ├── lib/             # cliente da API e autenticação
+    │   └── data/            # membros do grupo
+    └── e2e/                 # testes Playwright
 ```
 
 ## Membros do grupo
