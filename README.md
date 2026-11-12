@@ -200,16 +200,16 @@ Todas as requisições estão prontas em [backend/requests.http](backend/request
 
 O backend segue o padrão em camadas **Controller → Service → Repository**, o mesmo usado em projetos Spring. Cada camada só conversa com a de baixo:
 
-| Camada | Pasta | Responsabilidade | Equivalente no Spring |
-|--------|-------|------------------|-----------------------|
-| Routes | `routes/` | Liga cada URL e método HTTP a um método do controller | `@GetMapping`, `@PostMapping` |
-| Controller | `controllers/` | Lê a requisição, valida os dados de entrada e devolve a resposta HTTP | `@RestController` |
-| Service | `services/` | Regras de negócio: email único, dono do recurso, senha, token | `@Service` |
-| Repository | `repositories/` | Único lugar que fala com o banco, pelo Prisma Client | `@Repository` |
-| Model | `prisma/schema.prisma` | Entidades `User`, `Category` e `Todo`; o Prisma gera os tipos | `@Entity` |
-| DTO | `dtos/` | Formato das respostas e conversão entidade → resposta | DTO + mapper |
-| Validators | `validators/` | Regras dos dados de entrada (Zod) | Bean Validation |
-| Middlewares | `middlewares/` | Autenticação JWT e tratamento de erros | filtro de segurança e `@ControllerAdvice` |
+| Camada | Pasta | Responsabilidade |
+|--------|-------|------------------|
+| Routes | `routes/` | Liga cada URL e método HTTP a um método do controller |
+| Controller | `controllers/` | Lê a requisição, valida os dados de entrada e devolve a resposta HTTP |
+| Service | `services/` | Regras de negócio: email único, dono do recurso, senha, token |
+| Repository | `repositories/` | Único lugar que fala com o banco, pelo Prisma Client |
+| Model | `prisma/schema.prisma` | Entidades `User`, `Category` e `Todo`; o Prisma gera os tipos |
+| DTO | `dtos/` | Formato das respostas e conversão entidade → resposta |
+| Validators | `validators/` | Regras dos dados de entrada (Zod) |
+| Middlewares | `middlewares/` | Autenticação JWT e tratamento de erros |
 
 Os objetos são criados e ligados uns aos outros em [backend/src/app.ts](backend/src/app.ts) (injeção de dependência manual, pelo construtor).
 
@@ -247,8 +247,5 @@ Os objetos são criados e ligados uns aos outros em [backend/src/app.ts](backend
     │   ├── lib/             # cliente da API e autenticação
     │   └── data/            # membros do grupo
     └── e2e/                 # testes Playwright
+    
 ```
-
-## Membros do grupo
-
-- Arthur Dall Agnol Pinheiro ([@arthuurdp](https://github.com/arthuurdp))
