@@ -1,13 +1,5 @@
-import { CheckIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Brand } from '@/components/Brand'
-import { cn } from '@/lib/utils'
-
-const sample = [
-  { text: 'Terminar a API em Node.js', done: true },
-  { text: 'Escrever os testes do CRUD', done: true },
-  { text: 'Apresentar o trabalho para a turma', done: false },
-]
 
 type AuthShellProps = {
   title: string

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { api, setUnauthorizedHandler, tokenStore } from '@/lib/api'
+import { api, refreshSession, session, setUnauthorizedHandler } from '@/lib/api'
 import type { AuthResponse, User } from '@/lib/api'
 
 type AuthContextValue = {
@@ -8,35 +8,39 @@ type AuthContextValue = {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(() => tokenStore.get() !== null)
+  const [loading, setLoading] = useState(() => session.mayExist())
 
-  const logout = useCallback(() => {
-    tokenStore.clear()
+  const endSession = useCallback(() => {
+    session.clear()
     setUser(null)
   }, [])
 
   const startSession = useCallback(({ token, user }: AuthResponse) => {
-    tokenStore.set(token)
+    session.start(token)
     setUser(user)
   }, [])
 
-  useEffect(() => {
-    setUnauthorizedHandler(logout)
-    if (!tokenStore.get()) return
+  const logout = useCallback(async () => {
+    await api.logout().catch(() => {})
+    endSession()
+  }, [endSession])
 
-    api
-      .me()
-      .then(setUser)
-      .catch(logout)
+  useEffect(() => {
+    setUnauthorizedHandler(endSession)
+    if (!session.mayExist()) return
+
+    refreshSession()
+      .then((restored) => (restored ? setUser(restored.user) : endSession()))
+      .catch(() => {})
       .finally(() => setLoading(false))
-  }, [logout])
+  }, [endSession])
 
   const value = useMemo<AuthContextValue>(
     () => ({

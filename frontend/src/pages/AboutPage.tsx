@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { members } from '@/data/members'
 
 const stack = [
-  { area: 'API', items: 'Node, Express, SQLite e autenticação com JWT' },
+  { area: 'API', items: 'Node, TypeScript, Express, PostgreSQL com Prisma e autenticação com JWT' },
   { area: 'Front-end', items: 'React, Vite, Tailwind e shadcn/ui' },
   { area: 'Testes', items: 'Vitest com Supertest na API e Playwright no front' },
 ]

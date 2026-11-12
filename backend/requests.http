@@ -27,6 +27,13 @@ Content-Type: application/json
 GET {{baseUrl}}/users/me
 Authorization: Bearer {{token}}
 
+### Renovar a sessão (usa o cookie refresh_token recebido no login)
+# @name refresh
+POST {{baseUrl}}/users/refresh
+
+### Sair (revoga o refresh token e apaga o cookie)
+POST {{baseUrl}}/users/logout
+
 ### Rota protegida sem token (401)
 GET {{baseUrl}}/todos
 

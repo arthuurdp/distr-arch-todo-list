@@ -44,12 +44,23 @@ export class ApiError extends Error {
   }
 }
 
-const TOKEN_KEY = 'todolist.token'
+const SESSION_KEY = 'todolist.session'
+const LEGACY_TOKEN_KEY = 'todolist.token'
 
-export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+let accessToken: string | null = null
+
+localStorage.removeItem(LEGACY_TOKEN_KEY)
+
+export const session = {
+  mayExist: () => localStorage.getItem(SESSION_KEY) !== null,
+  start(token: string) {
+    accessToken = token
+    localStorage.setItem(SESSION_KEY, '1')
+  },
+  clear() {
+    accessToken = null
+    localStorage.removeItem(SESSION_KEY)
+  },
 }
 
 let onUnauthorized = () => {}
@@ -60,8 +71,37 @@ export function setUnauthorizedHandler(handler: () => void) {
 
 const API_DOWN = 'Não foi possível falar com a API. Confira se ela está rodando.'
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = tokenStore.get()
+let refreshing: Promise<AuthResponse | null> | null = null
+
+function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
+  return navigator.locks ? navigator.locks.request('todolist.refresh', task) : task()
+}
+
+async function requestNewSession(): Promise<AuthResponse | null> {
+  let res: Response
+  try {
+    res = await fetch('/api/users/refresh', { method: 'POST' })
+  } catch {
+    throw new ApiError(0, API_DOWN)
+  }
+
+  if (res.status === 401) return null
+  if (!res.ok) throw new ApiError(res.status, API_DOWN)
+
+  const data = (await res.json()) as AuthResponse
+  session.start(data.token)
+  return data
+}
+
+export function refreshSession(): Promise<AuthResponse | null> {
+  refreshing ??= withRefreshLock(requestNewSession).finally(() => {
+    refreshing = null
+  })
+  return refreshing
+}
+
+async function request<T>(method: string, path: string, body?: unknown, retry = true): Promise<T> {
+  const token = accessToken
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
@@ -79,9 +119,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (res.status === 204) return undefined as T
 
+  if (res.status === 401 && token && retry) {
+    const renewed = await refreshSession().catch(() => null)
+    if (renewed) return request<T>(method, path, body, false)
+    onUnauthorized()
+  }
+
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    if (res.status === 401 && token) onUnauthorized()
     throw new ApiError(res.status, data?.error ?? API_DOWN, data?.details)
   }
   return data as T
@@ -93,6 +138,7 @@ export const api = {
   login: (data: { email: string; password: string }) =>
     request<AuthResponse>('POST', '/users/login', data),
   me: () => request<User>('GET', '/users/me'),
+  logout: () => request<void>('POST', '/users/logout'),
 
   listCategories: () => request<Category[]>('GET', '/categories'),
   createCategory: (name: string) => request<Category>('POST', '/categories', { name }),
