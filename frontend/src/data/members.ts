@@ -10,4 +10,9 @@ export const members: Member[] = [
     role: 'API em Node.js, front-end em React e testes',
     github: 'arthuurdp',
   },
+  {
+    name: 'Bernardo Souza Santos',
+    role: 'API em Node.js, front-end em React e testes',
+    github: 'bessantos',
+  }
 ]

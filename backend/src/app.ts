@@ -1,11 +1,13 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express } from 'express';
+import swaggerUi from 'swagger-ui-express';
 import { config, type AuthConfig } from './config.js';
 import { CategoryController } from './controllers/category.controller.js';
 import { TodoController } from './controllers/todo.controller.js';
 import { UserController } from './controllers/user.controller.js';
 import type { PrismaClient } from './database.js';
+import { openApiDocument } from './docs/openapi.js';
 import { createAuthMiddleware } from './middlewares/auth.middleware.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
 import { CategoryRepository } from './repositories/category.repository.js';
@@ -46,6 +48,15 @@ export function createApp(prisma: PrismaClient, authConfig: AuthConfig = config)
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
   });
+
+  app.get('/api/docs.json', (req, res) => {
+    res.json(openApiDocument);
+  });
+  app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(openApiDocument, { customSiteTitle: 'Lista de Tarefas API' }),
+  );
 
   app.use('/api/users', userRoutes(userController, authenticate));
   app.use('/api/categories', authenticate, categoryRoutes(categoryController));

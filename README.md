@@ -24,11 +24,12 @@ Sobem três serviços: `postgres`, `backend` e `frontend`. O backend aplica as m
 
 | O quê      | Endereço |
 |------------|----------|
-| Aplicação  | http://localhost:8080 |
-| API        | http://localhost:3000/api |
+| Aplicação  | http://localhost:5173 |
+| API        | http://localhost:8080/api |
+| Swagger    | http://localhost:8080/api/docs |
 | PostgreSQL | `localhost:5432`, banco, usuário e senha `todolist` |
 
-Abra http://localhost:8080, crie uma conta em **Criar conta** e use a aplicação.
+Abra http://localhost:5173, crie uma conta em **Criar conta** e use a aplicação.
 
 ```bash
 docker compose down        # para os containers e mantém os dados
@@ -65,7 +66,7 @@ npm install
 npm run dev
 ```
 
-Abra http://localhost:5173. O front-end chama `/api`, e o Vite repassa para a API na porta 3000.
+Abra http://localhost:5173. O front-end chama `/api`, e o Vite repassa para a API na porta 8080.
 
 ### Variáveis da API (`backend/.env`)
 
@@ -76,7 +77,7 @@ Abra http://localhost:5173. O front-end chama `/api`, e o Vite repassa para a AP
 | `JWT_EXPIRES_IN` | `15m`                                                      | Validade do access token |
 | `REFRESH_TOKEN_DAYS` | `7`                                                    | Validade do refresh token, em dias |
 | `COOKIE_SECURE`  | `false`                                                    | Use `true` quando a aplicação estiver em HTTPS |
-| `PORT`           | `3000`                                                     | Porta da API |
+| `PORT`           | `8080`                                                     | Porta da API |
 
 ## Banco de dados e migrations
 
@@ -95,7 +96,7 @@ Comandos, dentro de `backend/`:
 
 Os testes exigem o **Docker aberto**: cada execução sobe um PostgreSQL descartável com Testcontainers e aplica as migrations, então nada toca no banco de desenvolvimento.
 
-**API** (61 testes):
+**API** (63 testes):
 
 ```bash
 cd backend
@@ -124,7 +125,11 @@ O Playwright sobe sozinho uma API (porta 3100, com banco descartável) e um fron
 
 ## Rotas da API
 
-Base: `http://localhost:3000/api`. As rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`.
+Documentação interativa (Swagger UI): http://localhost:8080/api/docs. Especificação OpenAPI em JSON: http://localhost:8080/api/docs.json.
+
+Para testar pelo Swagger: execute `POST /users/login`, copie o `token`, clique em **Authorize** e cole.
+
+Base: `http://localhost:8080/api`. As rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`.
 
 | Método | Rota                     | Acesso    | Descrição |
 |--------|--------------------------|-----------|-----------|

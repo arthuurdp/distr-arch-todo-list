@@ -145,3 +145,31 @@ describe('rotas inexistentes', () => {
     expect(res.body.error).toBe('Rota não encontrada');
   });
 });
+
+describe('documentação', () => {
+  it('serve a especificação OpenAPI com todas as rotas', async () => {
+    const res = await api.get('/api/docs.json');
+
+    expect(res.status).toBe(200);
+    expect(res.body.openapi).toBe('3.0.3');
+    expect(Object.keys(res.body.paths).sort()).toEqual([
+      '/categories',
+      '/categories/{id}',
+      '/categories/{id}/todos',
+      '/todos',
+      '/todos/{id}',
+      '/users/login',
+      '/users/logout',
+      '/users/me',
+      '/users/refresh',
+      '/users/register',
+    ]);
+  });
+
+  it('serve o Swagger UI', async () => {
+    const res = await api.get('/api/docs/');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('swagger-ui');
+  });
+});
