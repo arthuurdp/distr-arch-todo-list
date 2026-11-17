@@ -31,6 +31,12 @@ Sobem três serviços: `postgres`, `backend` e `frontend`. O backend aplica as m
 
 Abra http://localhost:5173, crie uma conta em **Criar conta** e use a aplicação.
 
+Para entrar com dados de exemplo, rode o seed (ver [Dados de exemplo](#dados-de-exemplo-seed)):
+
+```bash
+docker compose exec backend npm run db:seed:prod
+```
+
 ```bash
 docker compose down        # para os containers e mantém os dados
 docker compose down -v     # para e APAGA os dados do banco
@@ -55,8 +61,11 @@ cd backend
 cp .env.example .env
 npm install
 npm run db:deploy
+npm run db:seed
 npm run dev
 ```
+
+O `npm run db:seed` é opcional: cria o usuário de exemplo com categorias e tarefas.
 
 Em outro terminal, suba o front-end:
 
@@ -90,7 +99,25 @@ Comandos, dentro de `backend/`:
 | `npm run db:migrate -- --name <nome>` | Cria uma migration a partir das mudanças no schema e aplica no banco de desenvolvimento |
 | `npm run db:deploy`   | Aplica as migrations pendentes (usado no Docker e nos testes) |
 | `npm run db:generate` | Gera de novo o Prisma Client (tipos e consultas) |
+| `npm run db:seed`     | Cria ou recria os dados de exemplo (ver abaixo) |
 | `npm run db:studio`   | Abre uma tela para ver e editar os dados |
+
+### Dados de exemplo (seed)
+
+O seed em [backend/src/seed.ts](backend/src/seed.ts) cria um usuário de exemplo:
+
+| Email | Senha |
+|-------|-------|
+| `demo@todolist.com` | `Demo@12345` |
+
+Com 4 categorias (Faculdade, Trabalho, Casa, Saúde) e 14 tarefas: umas concluídas, umas pendentes, algumas sem categoria, prazos vencidos e futuros. Os prazos são calculados a partir do dia em que o seed roda.
+
+Pode rodar quantas vezes quiser: a cada execução, as tarefas e categorias do usuário de exemplo são apagadas e criadas de novo. Os dados de outros usuários não são tocados.
+
+| Onde | Comando |
+|------|---------|
+| Desenvolvimento, dentro de `backend/` | `npm run db:seed` |
+| Docker, com a stack no ar | `docker compose exec backend npm run db:seed:prod` |
 
 ## Testes
 
