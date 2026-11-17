@@ -17,7 +17,7 @@ export class TodoRepository {
 
   findAllByUser(
     userId: number,
-    filters: { completed?: boolean; categoryId?: number } = {},
+    filters: { completed?: boolean; categoryId?: number | null } = {},
   ): Promise<TodoWithCategory[]> {
     const where: Prisma.TodoWhereInput = { userId };
     if (filters.completed !== undefined) where.completed = filters.completed;
@@ -28,6 +28,14 @@ export class TodoRepository {
       include: withCategory,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
+  }
+
+  async countByUser(userId: number): Promise<{ total: number; completed: number }> {
+    const [total, completed] = await Promise.all([
+      this.prisma.todo.count({ where: { userId } }),
+      this.prisma.todo.count({ where: { userId, completed: true } }),
+    ]);
+    return { total, completed };
   }
 
   findByIdAndUser(id: number, userId: number): Promise<TodoWithCategory | null> {

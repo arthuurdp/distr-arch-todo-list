@@ -316,8 +316,8 @@ export const openApiDocument = {
           {
             name: 'categoryId',
             in: 'query',
-            description: 'Filtra por categoria',
-            schema: { type: 'integer', minimum: 1 },
+            description: 'Filtra por categoria. Use `none` para tarefas sem categoria',
+            schema: { type: 'string', pattern: '^(none|[1-9]\\d*)$', example: 'none' },
           },
         ],
         responses: {
@@ -336,6 +336,26 @@ export const openApiDocument = {
         responses: {
           201: { description: 'Tarefa criada', content: json(ref('Todo')) },
           400: validation,
+          401: unauthorized,
+        },
+      },
+    },
+    '/todos/summary': {
+      get: {
+        tags: ['Tarefas'],
+        summary: 'Totais de tarefas',
+        description: 'Total de tarefas do usuário e quantas estão concluídas.',
+        responses: {
+          200: {
+            description: 'Totais',
+            content: json({
+              type: 'object',
+              properties: {
+                total: { type: 'integer', example: 5 },
+                completed: { type: 'integer', example: 2 },
+              },
+            }),
+          },
           401: unauthorized,
         },
       },

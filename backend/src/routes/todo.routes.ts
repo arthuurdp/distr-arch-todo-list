@@ -5,6 +5,7 @@ export function todoRoutes(todoController: TodoController): Router {
   const router = Router();
 
   router.get('/', todoController.list);
+  router.get('/summary', todoController.summary);
   router.post('/', todoController.create);
   router.get('/:id', todoController.getById);
   router.put('/:id', todoController.update);

@@ -33,8 +33,8 @@ export const todoFiltersSchema = z.object({
     .optional(),
   categoryId: z
     .string('Categoria inválida')
-    .regex(/^[1-9]\d*$/, 'Categoria inválida')
-    .transform(Number)
+    .regex(/^(none|[1-9]\d*)$/, 'Categoria inválida')
+    .transform((value) => (value === 'none' ? null : Number(value)))
     .optional(),
 });
 

@@ -157,6 +157,7 @@ describe('documentação', () => {
       '/categories/{id}',
       '/categories/{id}/todos',
       '/todos',
+      '/todos/summary',
       '/todos/{id}',
       '/users/login',
       '/users/logout',

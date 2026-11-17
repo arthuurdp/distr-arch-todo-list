@@ -108,11 +108,106 @@ test.describe('CRUD de tarefas', () => {
     await createTodo(request, user, { title: 'Ler o capítulo 3' })
     await login(page, user)
 
+    const filtered = page.waitForRequest((req) => req.url().includes('/api/todos?categoryId='))
     await page.getByRole('combobox', { name: 'Filtrar por categoria' }).click()
     await page.getByRole('option', { name: 'Casa' }).click()
 
+    expect(new URL((await filtered).url()).searchParams.get('categoryId')).toBe(String(category.id))
+    await expect(page).toHaveURL('/?category=Casa')
     await expect(todoItem(page, 'Lavar a louça')).toBeVisible()
     await expect(todoItem(page, 'Ler o capítulo 3')).toHaveCount(0)
+
+    await page.reload()
+
+    await expect(page.getByRole('combobox', { name: 'Filtrar por categoria' })).toHaveText('Casa')
+    await expect(todoItem(page, 'Ler o capítulo 3')).toHaveCount(0)
+  })
+
+  test('abre o filtro pelo nome da categoria na URL', async ({ page, request }) => {
+    const user = await createUser(request)
+    const category = await createCategory(request, user, 'Física Básica')
+    await createTodo(request, user, { title: 'Lista de exercícios', categoryId: category.id })
+    await createTodo(request, user, { title: 'Lavar a louça' })
+    await login(page, user)
+
+    await page.goto(`/?category=${encodeURIComponent('física básica')}`)
+
+    await expect(page.getByRole('combobox', { name: 'Filtrar por categoria' })).toHaveText('Física Básica')
+    await expect(todoItem(page, 'Lista de exercícios')).toBeVisible()
+    await expect(todoItem(page, 'Lavar a louça')).toHaveCount(0)
+  })
+
+  test('ignora categoria inexistente na URL', async ({ page, request }) => {
+    const user = await createUser(request)
+    await createTodo(request, user, { title: 'Lavar a louça' })
+    await login(page, user)
+
+    await page.goto('/?category=Inexistente')
+
+    await expect(page.getByRole('combobox', { name: 'Filtrar por categoria' })).toHaveText(
+      'Todas as categorias',
+    )
+    await expect(todoItem(page, 'Lavar a louça')).toBeVisible()
+  })
+
+  test('filtra pela API e guarda o filtro na URL', async ({ page, request }) => {
+    const user = await createUser(request)
+    const category = await createCategory(request, user, 'Casa')
+    const done = await createTodo(request, user, { title: 'Lavar a louça', categoryId: category.id })
+    await createTodo(request, user, { title: 'Passar pano', categoryId: category.id })
+    await createTodo(request, user, { title: 'Ler o capítulo 3' })
+    await request.put(`/api/todos/${done.id}`, {
+      headers: user.headers,
+      data: { title: 'Lavar a louça', categoryId: category.id, completed: true },
+    })
+    await login(page, user)
+
+    const filtered = page.waitForRequest(
+      (req) => req.url().includes('/api/todos?') && req.url().includes('completed=true'),
+    )
+    await page.getByRole('tab', { name: 'Concluídas' }).click()
+
+    expect(new URL((await filtered).url()).searchParams.get('completed')).toBe('true')
+    await expect(page).toHaveURL('/?status=done')
+    await expect(todoItem(page, 'Lavar a louça')).toBeVisible()
+    await expect(todoItem(page, 'Passar pano')).toHaveCount(0)
+    await expect(page.getByText('1 de 3 concluída')).toBeVisible()
+
+    await page.reload()
+
+    await expect(page.getByRole('tab', { name: 'Concluídas' })).toHaveAttribute('aria-selected', 'true')
+    await expect(todoItem(page, 'Lavar a louça')).toBeVisible()
+    await expect(todoItem(page, 'Ler o capítulo 3')).toHaveCount(0)
+  })
+
+  test('filtra tarefas sem categoria', async ({ page, request }) => {
+    const user = await createUser(request)
+    const category = await createCategory(request, user, 'Casa')
+    await createTodo(request, user, { title: 'Lavar a louça', categoryId: category.id })
+    await createTodo(request, user, { title: 'Ler o capítulo 3' })
+    await login(page, user)
+
+    await page.getByRole('combobox', { name: 'Filtrar por categoria' }).click()
+    await page.getByRole('option', { name: 'Sem categoria' }).click()
+
+    await expect(page).toHaveURL('/?uncategorized=true')
+    await expect(todoItem(page, 'Ler o capítulo 3')).toBeVisible()
+    await expect(todoItem(page, 'Lavar a louça')).toHaveCount(0)
+  })
+
+  test('some da aba Pendentes ao concluir', async ({ page, request }) => {
+    const user = await createUser(request)
+    await createTodo(request, user, { title: 'Lavar a louça' })
+    await createTodo(request, user, { title: 'Ler o capítulo 3' })
+    await login(page, user)
+
+    await page.getByRole('tab', { name: 'Pendentes' }).click()
+    await expect(page).toHaveURL('/?status=pending')
+    await page.getByRole('checkbox', { name: 'Marcar "Lavar a louça" como concluída' }).click()
+
+    await expect(todoItem(page, 'Lavar a louça')).toHaveCount(0)
+    await expect(todoItem(page, 'Ler o capítulo 3')).toBeVisible()
+    await expect(page.getByText('1 de 2 concluídas')).toBeVisible()
   })
 
   test('exclui uma tarefa depois de confirmar', async ({ page, request }) => {

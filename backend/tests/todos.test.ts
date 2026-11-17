@@ -130,6 +130,37 @@ describe('GET /api/todos', () => {
     expect(res.body.map((todo) => todo.title)).toEqual(['Com categoria']);
   });
 
+  it('filtra tarefas sem categoria', async () => {
+    const category = await api.post('/api/categories').set(auth).send({ name: 'Estudos' });
+    await createTodo({ title: 'Com categoria', categoryId: category.body.id });
+    await createTodo({ title: 'Sem categoria' });
+
+    const res = await api.get('/api/todos?categoryId=none').set(auth);
+
+    expect(res.body.map((todo) => todo.title)).toEqual(['Sem categoria']);
+  });
+
+  it('combina os filtros de situação e categoria', async () => {
+    const category = await api.post('/api/categories').set(auth).send({ name: 'Estudos' });
+    const done = await createTodo({ title: 'Feita', categoryId: category.body.id });
+    await createTodo({ title: 'Pendente', categoryId: category.body.id });
+    const doneWithout = await createTodo({ title: 'Feita sem categoria' });
+    await api
+      .put(`/api/todos/${done.id}`)
+      .set(auth)
+      .send({ title: 'Feita', categoryId: category.body.id, completed: true });
+    await api
+      .put(`/api/todos/${doneWithout.id}`)
+      .set(auth)
+      .send({ title: 'Feita sem categoria', completed: true });
+
+    const res = await api
+      .get(`/api/todos?completed=true&categoryId=${category.body.id}`)
+      .set(auth);
+
+    expect(res.body.map((todo) => todo.title)).toEqual(['Feita']);
+  });
+
   it('recusa filtro inválido', async () => {
     const res = await api.get('/api/todos?completed=talvez').set(auth);
 
@@ -246,5 +277,32 @@ describe('isolamento entre usuários', () => {
     expect(list.body).toEqual([]);
     expect([get.status, put.status, del.status]).toEqual([404, 404, 404]);
     expect((await api.get(`/api/todos/${id}`).set(auth)).body.title).toBe('Da Ana');
+  });
+});
+
+describe('GET /api/todos/summary', () => {
+  it('conta o total e as concluídas, só do próprio usuário', async () => {
+    const done = await createTodo({ title: 'Feita' });
+    await createTodo({ title: 'Pendente' });
+    await api.put(`/api/todos/${done.id}`).set(auth).send({ title: 'Feita', completed: true });
+    const other = await registerUser(api, { email: 'bia@teste.com' });
+    await createTodo({ title: 'Da Bia' }, other.auth);
+
+    const res = await api.get('/api/todos/summary').set(auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ total: 2, completed: 1 });
+  });
+
+  it('responde zero para quem não tem tarefas', async () => {
+    const res = await api.get('/api/todos/summary').set(auth);
+
+    expect(res.body).toEqual({ total: 0, completed: 0 });
+  });
+
+  it('exige token', async () => {
+    const res = await api.get('/api/todos/summary');
+
+    expect(res.status).toBe(401);
   });
 });

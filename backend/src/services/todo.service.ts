@@ -15,6 +15,10 @@ export class TodoService {
     return todos.map(toTodoResponse);
   }
 
+  summary(userId: number): Promise<{ total: number; completed: number }> {
+    return this.todoRepository.countByUser(userId);
+  }
+
   async getById(userId: number, id: number | null): Promise<TodoResponse> {
     return toTodoResponse(await this.findOrFail(userId, id));
   }

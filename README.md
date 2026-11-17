@@ -96,14 +96,14 @@ Comandos, dentro de `backend/`:
 
 Os testes exigem o **Docker aberto**: cada execução sobe um PostgreSQL descartável com Testcontainers e aplica as migrations, então nada toca no banco de desenvolvimento.
 
-**API** (63 testes):
+**API** (68 testes):
 
 ```bash
 cd backend
 npm test
 ```
 
-**Front-end** (24 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
+**Front-end** (29 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
 
 ```bash
 cd frontend
@@ -144,7 +144,8 @@ Base: `http://localhost:8080/api`. As rotas protegidas exigem o cabeçalho `Auth
 | PUT    | `/categories/:id`        | Protegida | Renomeia uma categoria |
 | DELETE | `/categories/:id`        | Protegida | Exclui uma categoria (as tarefas ficam sem categoria) |
 | GET    | `/categories/:id/todos`  | Protegida | **Relacionamento:** tarefas da categoria |
-| GET    | `/todos`                 | Protegida | Lista as tarefas (filtros `completed` e `categoryId`) |
+| GET    | `/todos`                 | Protegida | Lista as tarefas. Filtros: `completed` (`true` ou `false`) e `categoryId` (id ou `none`) |
+| GET    | `/todos/summary`         | Protegida | Total de tarefas e quantas estão concluídas |
 | POST   | `/todos`                 | Protegida | Cria uma tarefa |
 | GET    | `/todos/:id`             | Protegida | Busca uma tarefa |
 | PUT    | `/todos/:id`             | Protegida | Atualiza uma tarefa |

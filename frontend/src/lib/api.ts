@@ -31,6 +31,13 @@ export type TodoInput = {
   categoryId: number | null
 }
 
+export type TodoFilters = {
+  completed?: boolean
+  categoryId?: number | 'none'
+}
+
+export type TodoSummary = { total: number; completed: number }
+
 export type AuthResponse = { token: string; user: User }
 
 export class ApiError extends Error {
@@ -147,7 +154,14 @@ export const api = {
   deleteCategory: (id: number) => request<void>('DELETE', `/categories/${id}`),
   listCategoryTodos: (id: number) => request<Todo[]>('GET', `/categories/${id}/todos`),
 
-  listTodos: () => request<Todo[]>('GET', '/todos'),
+  listTodos: (filters: TodoFilters = {}) => {
+    const params = new URLSearchParams()
+    if (filters.completed !== undefined) params.set('completed', String(filters.completed))
+    if (filters.categoryId !== undefined) params.set('categoryId', String(filters.categoryId))
+    const query = params.toString()
+    return request<Todo[]>('GET', query ? `/todos?${query}` : '/todos')
+  },
+  todoSummary: () => request<TodoSummary>('GET', '/todos/summary'),
   createTodo: (data: TodoInput) => request<Todo>('POST', '/todos', data),
   updateTodo: (id: number, data: TodoInput & { completed: boolean }) =>
     request<Todo>('PUT', `/todos/${id}`, data),

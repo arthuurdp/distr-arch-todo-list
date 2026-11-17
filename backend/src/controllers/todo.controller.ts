@@ -11,6 +11,10 @@ export class TodoController {
     res.json(await this.todoService.list(req.userId, filters));
   };
 
+  summary = async (req: Request, res: Response) => {
+    res.json(await this.todoService.summary(req.userId));
+  };
+
   create = async (req: Request, res: Response) => {
     const input = validate(createTodoSchema, req.body);
     res.status(201).json(await this.todoService.create(req.userId, input));

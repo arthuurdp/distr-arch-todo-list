@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom'
 import { PlusIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -9,20 +10,84 @@ import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api, errorMessage } from '@/lib/api'
-import type { Category, Todo } from '@/lib/api'
+import type { Category, Todo, TodoFilters, TodoSummary } from '@/lib/api'
 
 type StatusFilter = 'all' | 'pending' | 'done'
 
 const ALL_CATEGORIES = 'all'
 const NO_CATEGORY = 'none'
 
+const STATUS_VALUES: StatusFilter[] = ['all', 'pending', 'done']
+
+function parseStatus(value: string | null): StatusFilter {
+  return STATUS_VALUES.includes(value as StatusFilter) ? (value as StatusFilter) : 'all'
+}
+
 export function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([])
+  const [listLoaded, setListLoaded] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [summary, setSummary] = useState<TodoSummary>({ total: 0, completed: 0 })
+  const [ready, setReady] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const status = parseStatus(searchParams.get('status'))
+
+  const categoryName = searchParams.get('category')?.toLowerCase()
+  const selectedCategory = categoryName
+    ? categories.find((category) => category.name.toLowerCase() === categoryName)
+    : undefined
+  const categoryFilter =
+    searchParams.get('uncategorized') === 'true'
+      ? NO_CATEGORY
+      : selectedCategory
+        ? String(selectedCategory.id)
+        : ALL_CATEGORIES
+
+  function updateParams(update: (params: URLSearchParams) => void) {
+    setSearchParams(
+      (params) => {
+        update(params)
+        return params
+      },
+      { replace: true },
+    )
+  }
+
+  const setStatus = (value: StatusFilter) =>
+    updateParams((params) => {
+      if (value === 'all') params.delete('status')
+      else params.set('status', value)
+    })
+
+  const setCategoryFilter = (value: string) =>
+    updateParams((params) => {
+      params.delete('category')
+      params.delete('uncategorized')
+      if (value === NO_CATEGORY) {
+        params.set('uncategorized', 'true')
+        return
+      }
+      const category = categories.find((item) => String(item.id) === value)
+      if (category) params.set('category', category.name)
+    })
+
+  const filters = useMemo<TodoFilters>(
+    () => ({
+      completed: status === 'all' ? undefined : status === 'done',
+      categoryId:
+        categoryFilter === ALL_CATEGORIES
+          ? undefined
+          : categoryFilter === NO_CATEGORY
+            ? 'none'
+            : Number(categoryFilter),
+    }),
+    [status, categoryFilter],
+  )
+
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [status, setStatus] = useState<StatusFilter>('all')
-  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Todo | null>(null)
   const [deleting, setDeleting] = useState<Todo | null>(null)
@@ -31,12 +96,14 @@ export function TodosPage() {
     setLoading(true)
     setLoadError('')
     try {
-      const [loadedTodos, loadedCategories] = await Promise.all([
-        api.listTodos(),
+      const [loadedCategories, loadedSummary] = await Promise.all([
         api.listCategories(),
+        api.todoSummary(),
       ])
-      setTodos(loadedTodos)
       setCategories(loadedCategories)
+      setSummary(loadedSummary)
+      setReady(true)
+      setReloadKey((key) => key + 1)
     } catch (err) {
       setLoadError(errorMessage(err))
     } finally {
@@ -48,20 +115,37 @@ export function TodosPage() {
     load()
   }, [load])
 
-  const doneCount = todos.filter((todo) => todo.completed).length
-  const progress = todos.length === 0 ? 0 : Math.round((doneCount / todos.length) * 100)
+  useEffect(() => {
+    if (!ready) return
+    let ignore = false
 
-  const visible = useMemo(
-    () =>
-      todos.filter((todo) => {
-        if (status === 'pending' && todo.completed) return false
-        if (status === 'done' && !todo.completed) return false
-        if (categoryFilter === NO_CATEGORY) return todo.categoryId === null
-        if (categoryFilter !== ALL_CATEGORIES) return todo.categoryId === Number(categoryFilter)
-        return true
-      }),
-    [todos, status, categoryFilter],
-  )
+    api
+      .listTodos(filters)
+      .then((loaded) => {
+        if (ignore) return
+        setTodos(loaded)
+        setListLoaded(true)
+      })
+      .catch((err) => {
+        if (!ignore) setLoadError(errorMessage(err))
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [ready, filters, reloadKey])
+
+  const refresh = useCallback(async () => {
+    try {
+      setSummary(await api.todoSummary())
+      setReloadKey((key) => key + 1)
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }, [])
+
+  const progress =
+    summary.total === 0 ? 0 : Math.round((summary.completed / summary.total) * 100)
 
   function openCreate() {
     setEditing(null)
@@ -73,24 +157,22 @@ export function TodosPage() {
     setFormOpen(true)
   }
 
-  function handleSaved(saved: Todo, created: boolean) {
-    setTodos((current) =>
-      created ? [saved, ...current] : current.map((todo) => (todo.id === saved.id ? saved : todo)),
-    )
+  function handleSaved(_saved: Todo, created: boolean) {
     setFormOpen(false)
     toast.success(created ? 'Tarefa criada' : 'Tarefa atualizada')
+    refresh()
   }
 
   async function handleToggle(todo: Todo) {
     try {
-      const saved = await api.updateTodo(todo.id, {
+      await api.updateTodo(todo.id, {
         title: todo.title,
         description: todo.description,
         dueDate: todo.dueDate,
         categoryId: todo.categoryId,
         completed: !todo.completed,
       })
-      setTodos((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+      await refresh()
     } catch (err) {
       toast.error(errorMessage(err))
     }
@@ -100,8 +182,8 @@ export function TodosPage() {
     if (!deleting) return
     try {
       await api.deleteTodo(deleting.id)
-      setTodos((current) => current.filter((todo) => todo.id !== deleting.id))
       toast.success('Tarefa excluída')
+      await refresh()
     } catch (err) {
       toast.error(errorMessage(err))
     } finally {
@@ -114,9 +196,10 @@ export function TodosPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold sm:text-4xl">Tarefas</h1>
-          {todos.length > 0 && (
+          {summary.total > 0 && (
             <p className="mt-1 text-muted-foreground" aria-live="polite">
-              {doneCount} de {todos.length} {todos.length === 1 ? 'concluída' : 'concluídas'}
+              {summary.completed} de {summary.total}{' '}
+              {summary.total === 1 ? 'concluída' : 'concluídas'}
             </p>
           )}
         </div>
@@ -126,11 +209,11 @@ export function TodosPage() {
         </Button>
       </div>
 
-      {todos.length > 0 && (
+      {summary.total > 0 && (
         <Progress value={progress} aria-label="Progresso das tarefas" className="mt-4 h-1.5" />
       )}
 
-      {loading ? (
+      {loading || (!listLoaded && !loadError) ? (
         <p className="mt-10 text-muted-foreground">Carregando tarefas…</p>
       ) : loadError ? (
         <div className="mt-10 rounded-xl border bg-card p-6">
@@ -141,7 +224,7 @@ export function TodosPage() {
             Tentar de novo
           </Button>
         </div>
-      ) : todos.length === 0 ? (
+      ) : summary.total === 0 ? (
         <div className="mt-10 rounded-xl border border-dashed bg-card p-8 text-center sm:p-12">
           <h2 className="text-xl font-semibold">Nenhuma tarefa por aqui</h2>
           <p className="mt-1 text-muted-foreground">Crie a primeira para começar a lista.</p>
@@ -183,11 +266,11 @@ export function TodosPage() {
             </Select>
           </div>
 
-          {visible.length === 0 ? (
+          {todos.length === 0 ? (
             <p className="mt-8 text-muted-foreground">Nenhuma tarefa com esses filtros.</p>
           ) : (
             <ul aria-label="Lista de tarefas" className="mt-4 divide-y rounded-xl border bg-card">
-              {visible.map((todo) => (
+              {todos.map((todo) => (
                 <TodoItem
                   key={todo.id}
                   todo={todo}
