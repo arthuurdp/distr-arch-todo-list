@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SubmitEvent } from 'react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { api, errorDetails, errorMessage } from '@/lib/api'
-import type { Category, Todo } from '@/lib/api'
+import { errorDetails, errorMessage } from '@/api/errors'
+import { todoService } from '@/services/todo.service'
+import type { Category } from '@/types/category'
+import type { Todo } from '@/types/todo'
 
 const NO_CATEGORY = 'none'
 
@@ -58,7 +60,7 @@ function TodoForm({ todo, categories, onSaved, onCancel }: TodoFormProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
     setFieldErrors({})
@@ -72,8 +74,8 @@ function TodoForm({ todo, categories, onSaved, onCancel }: TodoFormProps) {
 
     try {
       const saved = todo
-        ? await api.updateTodo(todo.id, { ...input, completed: todo.completed })
-        : await api.createTodo(input)
+        ? await todoService.update(todo.id, { ...input, completed: todo.completed })
+        : await todoService.create(input)
       onSaved(saved, !todo)
     } catch (err) {
       const details = errorDetails(err)

@@ -1,6 +1,6 @@
 import { ListChecksIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SubmitEvent } from 'react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormField } from '@/components/FormField'
@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { api, errorDetails, errorMessage } from '@/lib/api'
-import type { Category, Todo } from '@/lib/api'
+import { errorDetails, errorMessage } from '@/api/errors'
+import { categoryService } from '@/services/category.service'
+import type { Category } from '@/types/category'
+import type { Todo } from '@/types/todo'
 
 function countLabel(count: number) {
   if (count === 0) return 'Nenhuma tarefa'
@@ -36,7 +38,7 @@ export function CategoriesPage() {
     setLoading(true)
     setLoadError('')
     try {
-      setCategories(await api.listCategories())
+      setCategories(await categoryService.list())
     } catch (err) {
       setLoadError(errorMessage(err))
     } finally {
@@ -48,12 +50,12 @@ export function CategoriesPage() {
     load()
   }, [load])
 
-  async function handleCreate(event: FormEvent) {
+  async function handleCreate(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setCreating(true)
     setCreateError('')
     try {
-      const created = await api.createCategory(newName)
+      const created = await categoryService.create(newName)
       setCategories((current) => [...current, created].sort(byName))
       setNewName('')
       toast.success('Categoria criada')
@@ -75,7 +77,7 @@ export function CategoriesPage() {
   async function handleDelete() {
     if (!deleting) return
     try {
-      await api.deleteCategory(deleting.id)
+      await categoryService.remove(deleting.id)
       setCategories((current) => current.filter((category) => category.id !== deleting.id))
       toast.success('Categoria excluída')
     } catch (err) {
@@ -205,12 +207,12 @@ function RenameForm({ category, onSaved, onCancel }: RenameFormProps) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
     setError('')
     try {
-      onSaved(await api.updateCategory(category.id, name))
+      onSaved(await categoryService.update(category.id, name))
     } catch (err) {
       setError(errorDetails(err).name ?? errorMessage(err))
       setSubmitting(false)
@@ -246,8 +248,8 @@ function CategoryTodos({ category }: { category: Category }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api
-      .listCategoryTodos(category.id)
+    categoryService
+      .listTodos(category.id)
       .then(setTodos)
       .catch((err) => setError(errorMessage(err)))
   }, [category.id])

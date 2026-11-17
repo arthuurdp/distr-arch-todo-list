@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SubmitEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AuthShell } from '@/components/AuthShell'
 import { FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { errorDetails, errorMessage } from '@/lib/api'
+import { errorDetails, errorMessage } from '@/api/errors'
 import { useAuth } from '@/lib/auth'
 
 export function RegisterPage() {
@@ -21,7 +21,7 @@ export function RegisterPage() {
     return <Navigate to="/" replace />
   }
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
     setError('')

@@ -2,7 +2,7 @@ import { CalendarIcon, PencilIcon, TagIcon, Trash2Icon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { Todo } from '@/lib/api'
+import type { Todo } from '@/types/todo'
 import { formatDate, isOverdue } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 

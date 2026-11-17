@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { api, refreshSession, session, setUnauthorizedHandler } from '@/lib/api'
-import type { AuthResponse, User } from '@/lib/api'
+import { refreshSession, session, setUnauthorizedHandler } from '@/api/session'
+import { authService } from '@/services/auth.service'
+import type { AuthResponse, User } from '@/types/user'
 
 type AuthContextValue = {
   user: User | null
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
-    await api.logout().catch(() => {})
+    await authService.logout().catch(() => {})
     endSession()
   }, [endSession])
 
@@ -46,9 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
-      login: async (email, password) => startSession(await api.login({ email, password })),
+      login: async (email, password) => startSession(await authService.login({ email, password })),
       register: async (name, email, password) =>
-        startSession(await api.register({ name, email, password })),
+        startSession(await authService.register({ name, email, password })),
       logout,
     }),
     [user, loading, startSession, logout],

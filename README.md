@@ -195,7 +195,7 @@ Todas as requisições estão prontas em [backend/requests.http](backend/request
 | Banco de dados | PostgreSQL com Prisma: [backend/prisma/schema.prisma](backend/prisma/schema.prisma) e [backend/src/repositories](backend/src/repositories) |
 | Tratamento de erros | [backend/src/middlewares/error.middleware.ts](backend/src/middlewares/error.middleware.ts) e [backend/src/validators](backend/src/validators) |
 | Testes de todos os recursos da API | [backend/tests](backend/tests) |
-| Tela de login que guarda e usa o token | [frontend/src/pages/LoginPage.tsx](frontend/src/pages/LoginPage.tsx), [frontend/src/lib/auth.tsx](frontend/src/lib/auth.tsx) e [frontend/src/lib/api.ts](frontend/src/lib/api.ts) |
+| Tela de login que guarda e usa o token | [frontend/src/pages/LoginPage.tsx](frontend/src/pages/LoginPage.tsx), [frontend/src/lib/auth.tsx](frontend/src/lib/auth.tsx) e [frontend/src/api](frontend/src/api) (token em memória, cabeçalho e renovação) |
 | Framework de UI | Tailwind CSS com shadcn/ui |
 | Layout consistente e responsivo | Cabeçalho com navegação e rodapé em [frontend/src/components/AppLayout.tsx](frontend/src/components/AppLayout.tsx) |
 | Componente de terceiro (shadcn/ui) | [frontend/src/components/ui](frontend/src/components/ui): Dialog, Alert Dialog, Sheet, Select, Tabs, Checkbox, Progress, Dropdown Menu, Sonner e outros |
@@ -250,7 +250,10 @@ Os objetos são criados e ligados uns aos outros em [backend/src/app.ts](backend
     ├── src/
     │   ├── pages/           # Login, Cadastro, Tarefas, Categorias, Sobre
     │   ├── components/      # layout, formulários e componentes shadcn/ui (ui/)
-    │   ├── lib/             # cliente da API e autenticação
+    │   ├── api/             # cliente axios, sessão (token e renovação) e erros
+    │   ├── services/        # chamadas da API por recurso: auth, category, todo
+    │   ├── types/           # tipos User, Category e Todo
+    │   ├── lib/             # contexto de autenticação e utilitários
     │   └── data/            # membros do grupo
     └── e2e/                 # testes Playwright
     

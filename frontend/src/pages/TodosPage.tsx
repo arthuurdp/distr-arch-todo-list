@@ -9,8 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { api, errorMessage } from '@/lib/api'
-import type { Category, Todo, TodoFilters, TodoSummary } from '@/lib/api'
+import { errorMessage } from '@/api/errors'
+import { categoryService } from '@/services/category.service'
+import { todoService } from '@/services/todo.service'
+import type { Category } from '@/types/category'
+import type { Todo, TodoFilters, TodoSummary } from '@/types/todo'
 
 type StatusFilter = 'all' | 'pending' | 'done'
 
@@ -97,8 +100,8 @@ export function TodosPage() {
     setLoadError('')
     try {
       const [loadedCategories, loadedSummary] = await Promise.all([
-        api.listCategories(),
-        api.todoSummary(),
+        categoryService.list(),
+        todoService.summary(),
       ])
       setCategories(loadedCategories)
       setSummary(loadedSummary)
@@ -119,8 +122,8 @@ export function TodosPage() {
     if (!ready) return
     let ignore = false
 
-    api
-      .listTodos(filters)
+    todoService
+      .list(filters)
       .then((loaded) => {
         if (ignore) return
         setTodos(loaded)
@@ -137,7 +140,7 @@ export function TodosPage() {
 
   const refresh = useCallback(async () => {
     try {
-      setSummary(await api.todoSummary())
+      setSummary(await todoService.summary())
       setReloadKey((key) => key + 1)
     } catch (err) {
       toast.error(errorMessage(err))
@@ -165,7 +168,7 @@ export function TodosPage() {
 
   async function handleToggle(todo: Todo) {
     try {
-      await api.updateTodo(todo.id, {
+      await todoService.update(todo.id, {
         title: todo.title,
         description: todo.description,
         dueDate: todo.dueDate,
@@ -181,7 +184,7 @@ export function TodosPage() {
   async function handleDelete() {
     if (!deleting) return
     try {
-      await api.deleteTodo(deleting.id)
+      await todoService.remove(deleting.id)
       toast.success('Tarefa excluída')
       await refresh()
     } catch (err) {
