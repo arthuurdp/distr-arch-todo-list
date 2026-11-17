@@ -210,6 +210,68 @@ test.describe('CRUD de tarefas', () => {
     await expect(page.getByText('1 de 2 concluídas')).toBeVisible()
   })
 
+  test('pagina a lista de 10 em 10 e guarda a página na URL', async ({ page, request }) => {
+    const user = await createUser(request)
+    for (let index = 1; index <= 12; index++) {
+      await createTodo(request, user, { title: `Tarefa ${String(index).padStart(2, '0')}` })
+    }
+    await login(page, user)
+
+    await expect(todoList(page).getByRole('listitem')).toHaveCount(10)
+    await expect(page.getByText('Mostrando 1–10 de 12 tarefas')).toBeVisible()
+    await expect(todoItem(page, 'Tarefa 12')).toBeVisible()
+
+    const pagination = page.getByRole('navigation', { name: 'Paginação das tarefas' })
+    await pagination.getByRole('link', { name: 'Página 2' }).click()
+
+    await expect(page).toHaveURL('/?page=2')
+    await expect(todoList(page).getByRole('listitem')).toHaveCount(2)
+    await expect(page.getByText('Mostrando 11–12 de 12 tarefas')).toBeVisible()
+    await expect(pagination.getByRole('link', { name: 'Página 2' })).toHaveAttribute('aria-current', 'page')
+
+    await page.reload()
+    await expect(todoItem(page, 'Tarefa 01')).toBeVisible()
+
+    await pagination.getByRole('link', { name: 'Ir para a página anterior' }).click()
+    await expect(page).toHaveURL('/')
+    await expect(todoItem(page, 'Tarefa 12')).toBeVisible()
+  })
+
+  test('volta para a primeira página ao trocar o filtro', async ({ page, request }) => {
+    const user = await createUser(request)
+    for (let index = 1; index <= 12; index++) {
+      await createTodo(request, user, { title: `Tarefa ${String(index).padStart(2, '0')}` })
+    }
+    await login(page, user)
+    await page.goto('/?page=2')
+    await expect(todoList(page).getByRole('listitem')).toHaveCount(2)
+
+    await page.getByRole('tab', { name: 'Pendentes' }).click()
+
+    await expect(page).toHaveURL('/?status=pending')
+    await expect(todoList(page).getByRole('listitem')).toHaveCount(10)
+  })
+
+  test('volta para a página anterior ao excluir a última tarefa da página', async ({ page, request }) => {
+    const user = await createUser(request)
+    for (let index = 1; index <= 11; index++) {
+      await createTodo(request, user, { title: `Tarefa ${String(index).padStart(2, '0')}` })
+    }
+    await login(page, user)
+    await page.goto('/?page=2')
+    await expect(todoItem(page, 'Tarefa 01')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Excluir "Tarefa 01"' }).click()
+    await page
+      .getByRole('alertdialog', { name: 'Excluir tarefa?' })
+      .getByRole('button', { name: 'Excluir tarefa' })
+      .click()
+
+    await expect(page).toHaveURL('/')
+    await expect(todoList(page).getByRole('listitem')).toHaveCount(10)
+    await expect(page.getByRole('navigation', { name: 'Paginação das tarefas' })).toHaveCount(0)
+  })
+
   test('exclui uma tarefa depois de confirmar', async ({ page, request }) => {
     const user = await createUser(request)
     await createTodo(request, user, { title: 'Tarefa para apagar' })

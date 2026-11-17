@@ -1,5 +1,8 @@
+import { MoonIcon, SunIcon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import type { ReactNode } from 'react'
 import { Brand } from '@/components/Brand'
+import { Switch } from '@/components/ui/switch'
 
 type AuthShellProps = {
   title: string
@@ -9,8 +12,19 @@ type AuthShellProps = {
 }
 
 export function AuthShell({ title, subtitle, footer, children }: AuthShellProps) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme !== 'light'
+
   return (
-    <div className="grid min-h-svh">
+    <div className="relative grid min-h-svh">
+      <Switch
+        size="lg"
+        className="absolute top-4 right-4"
+        aria-label="Modo escuro"
+        checked={isDark}
+        onCheckedChange={(dark) => setTheme(dark ? 'dark' : 'light')}
+        thumbIcon={isDark ? <MoonIcon aria-hidden /> : <SunIcon aria-hidden />}
+      />
       <main className="flex flex-col justify-center px-6 py-10">
         <div className="mx-auto w-full max-w-sm text-center">
           <Brand className="mb-10 hidden" />

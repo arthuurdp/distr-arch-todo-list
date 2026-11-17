@@ -105,7 +105,7 @@ describe('GET /api/todos', () => {
     const res = await api.get('/api/todos').set(auth);
 
     expect(res.status).toBe(200);
-    expect(res.body.map((todo) => todo.title).sort()).toEqual(['Primeira', 'Segunda']);
+    expect(res.body.content.map((todo) => todo.title).sort()).toEqual(['Primeira', 'Segunda']);
   });
 
   it('filtra por situação', async () => {
@@ -116,8 +116,8 @@ describe('GET /api/todos', () => {
     const completed = await api.get('/api/todos?completed=true').set(auth);
     const pending = await api.get('/api/todos?completed=false').set(auth);
 
-    expect(completed.body.map((todo) => todo.title)).toEqual(['Feita']);
-    expect(pending.body.map((todo) => todo.title)).toEqual(['Pendente']);
+    expect(completed.body.content.map((todo) => todo.title)).toEqual(['Feita']);
+    expect(pending.body.content.map((todo) => todo.title)).toEqual(['Pendente']);
   });
 
   it('filtra por categoria', async () => {
@@ -127,7 +127,7 @@ describe('GET /api/todos', () => {
 
     const res = await api.get(`/api/todos?categoryId=${category.body.id}`).set(auth);
 
-    expect(res.body.map((todo) => todo.title)).toEqual(['Com categoria']);
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Com categoria']);
   });
 
   it('filtra tarefas sem categoria', async () => {
@@ -137,7 +137,7 @@ describe('GET /api/todos', () => {
 
     const res = await api.get('/api/todos?categoryId=none').set(auth);
 
-    expect(res.body.map((todo) => todo.title)).toEqual(['Sem categoria']);
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Sem categoria']);
   });
 
   it('combina os filtros de situação e categoria', async () => {
@@ -158,7 +158,7 @@ describe('GET /api/todos', () => {
       .get(`/api/todos?completed=true&categoryId=${category.body.id}`)
       .set(auth);
 
-    expect(res.body.map((todo) => todo.title)).toEqual(['Feita']);
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Feita']);
   });
 
   it('recusa filtro inválido', async () => {
@@ -173,6 +173,147 @@ describe('GET /api/todos', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.details).toEqual({ categoryId: 'Categoria inválida' });
+  });
+});
+
+describe('ordenação das tarefas', () => {
+  async function complete(todo) {
+    await api
+      .put(`/api/todos/${todo.id}`)
+      .set(auth)
+      .send({ title: todo.title, dueDate: todo.dueDate, categoryId: todo.categoryId, completed: true });
+  }
+
+  const titles = (res) => res.body.content.map((todo) => todo.title);
+
+  it('pendentes por prazo mais próximo, sem prazo no fim e concluídas por último', async () => {
+    await createTodo({ title: 'Sem prazo' });
+    await createTodo({ title: 'Daqui a 10 dias', dueDate: '2099-01-11' });
+    await createTodo({ title: 'Vencida', dueDate: '2000-01-01' });
+    await createTodo({ title: 'Daqui a 1 dia', dueDate: '2099-01-02' });
+    await complete(await createTodo({ title: 'Concluída sem prazo' }));
+    await complete(await createTodo({ title: 'Concluída vencida', dueDate: '1999-12-31' }));
+
+    const res = await api.get('/api/todos').set(auth);
+
+    expect(titles(res)).toEqual([
+      'Vencida',
+      'Daqui a 1 dia',
+      'Daqui a 10 dias',
+      'Sem prazo',
+      'Concluída vencida',
+      'Concluída sem prazo',
+    ]);
+  });
+
+  it('desempata pela tarefa mais nova', async () => {
+    await createTodo({ title: 'Antiga', dueDate: '2099-01-01' });
+    await createTodo({ title: 'Nova', dueDate: '2099-01-01' });
+
+    const res = await api.get('/api/todos').set(auth);
+
+    expect(titles(res)).toEqual(['Nova', 'Antiga']);
+  });
+
+  it('mantém a ordem entre as páginas', async () => {
+    await createTodo({ title: 'Prazo 3', dueDate: '2099-01-03' });
+    await createTodo({ title: 'Prazo 1', dueDate: '2099-01-01' });
+    await createTodo({ title: 'Sem prazo' });
+    await createTodo({ title: 'Prazo 2', dueDate: '2099-01-02' });
+
+    const first = await api.get('/api/todos?size=2').set(auth);
+    const second = await api.get('/api/todos?size=2&page=2').set(auth);
+
+    expect(titles(first)).toEqual(['Prazo 1', 'Prazo 2']);
+    expect(titles(second)).toEqual(['Prazo 3', 'Sem prazo']);
+  });
+
+  it('vale também para as tarefas de uma categoria', async () => {
+    const category = await api.post('/api/categories').set(auth).send({ name: 'Estudos' });
+    const categoryId = category.body.id;
+    await complete(await createTodo({ title: 'Concluída', categoryId, dueDate: '2000-01-01' }));
+    await createTodo({ title: 'Sem prazo', categoryId });
+    await createTodo({ title: 'Com prazo', categoryId, dueDate: '2099-01-01' });
+
+    const res = await api.get(`/api/categories/${categoryId}/todos`).set(auth);
+
+    expect(res.body.map((todo) => todo.title)).toEqual(['Com prazo', 'Sem prazo', 'Concluída']);
+  });
+});
+
+describe('paginação de GET /api/todos', () => {
+  async function createMany(count: number) {
+    for (let index = 1; index <= count; index++) {
+      await createTodo({ title: `Tarefa ${String(index).padStart(2, '0')}` });
+    }
+  }
+
+  it('usa página 1 com 10 itens por padrão', async () => {
+    await createMany(12);
+
+    const res = await api.get('/api/todos').set(auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ page: 1, size: 10, totalElements: 12, totalPages: 2 });
+    expect(res.body.content).toHaveLength(10);
+    expect(res.body.content[0].title).toBe('Tarefa 12');
+  });
+
+  it('devolve a página pedida', async () => {
+    await createMany(12);
+
+    const res = await api.get('/api/todos?page=2').set(auth);
+
+    expect(res.body).toMatchObject({ page: 2, size: 10, totalElements: 12, totalPages: 2 });
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Tarefa 02', 'Tarefa 01']);
+  });
+
+  it('aceita outro tamanho de página', async () => {
+    await createMany(5);
+
+    const res = await api.get('/api/todos?size=2&page=3').set(auth);
+
+    expect(res.body).toMatchObject({ page: 3, size: 2, totalElements: 5, totalPages: 3 });
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Tarefa 01']);
+  });
+
+  it('pagina junto com os filtros', async () => {
+    await createMany(3);
+    const category = await api.post('/api/categories').set(auth).send({ name: 'Estudos' });
+    for (let index = 1; index <= 3; index++) {
+      await createTodo({ title: `Estudo ${index}`, categoryId: category.body.id });
+    }
+
+    const res = await api.get(`/api/todos?categoryId=${category.body.id}&size=2`).set(auth);
+
+    expect(res.body).toMatchObject({ totalElements: 3, totalPages: 2 });
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Estudo 3', 'Estudo 2']);
+  });
+
+  it('devolve lista vazia depois da última página', async () => {
+    await createMany(3);
+
+    const res = await api.get('/api/todos?page=5').set(auth);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ page: 5, totalElements: 3, totalPages: 1, content: [] });
+  });
+
+  it('responde zero páginas quando não há tarefas', async () => {
+    const res = await api.get('/api/todos').set(auth);
+
+    expect(res.body).toEqual({ content: [], page: 1, size: 10, totalElements: 0, totalPages: 0 });
+  });
+
+  it('recusa página e tamanho inválidos', async () => {
+    const page = await api.get('/api/todos?page=0').set(auth);
+    const size = await api.get('/api/todos?size=abc').set(auth);
+    const tooBig = await api.get('/api/todos?size=51').set(auth);
+
+    expect(page.status).toBe(400);
+    expect(page.body.details).toEqual({ page: 'Página inválida' });
+    expect(size.body.details).toEqual({ size: 'Tamanho de página inválido' });
+    expect(tooBig.body.details).toEqual({ size: 'Tamanho de página deve ser no máximo 50' });
   });
 });
 
@@ -274,7 +415,7 @@ describe('isolamento entre usuários', () => {
       .send({ title: 'Invadida', completed: true });
     const del = await api.delete(`/api/todos/${id}`).set(other.auth);
 
-    expect(list.body).toEqual([]);
+    expect(list.body.content).toEqual([]);
     expect([get.status, put.status, del.status]).toEqual([404, 404, 404]);
     expect((await api.get(`/api/todos/${id}`).set(auth)).body.title).toBe('Da Ana');
   });

@@ -1,7 +1,9 @@
-import { LogOutIcon } from 'lucide-react'
+import { LogOutIcon, MoonIcon, SunIcon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Brand } from '@/components/Brand'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Switch } from '@/components/ui/switch'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +52,8 @@ function MainNav({ className }: { className?: string }) {
 
 export function AppLayout() {
   const { user, logout } = useAuth()
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme !== 'light'
   if (!user) return null
 
   return (
@@ -61,10 +65,19 @@ export function AppLayout() {
           </Link>
           <MainNav className="hidden sm:flex" />
 
+          <Switch
+            size="lg"
+            className="ml-auto"
+            aria-label="Modo escuro"
+            checked={isDark}
+            onCheckedChange={(dark) => setTheme(dark ? 'dark' : 'light')}
+            thumbIcon={isDark ? <MoonIcon aria-hidden /> : <SunIcon aria-hidden />}
+          />
+
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Abrir menu da conta"
-              className="ml-auto rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <Avatar>
                 <AvatarFallback className="bg-secondary font-medium">

@@ -117,6 +117,25 @@ export const openApiDocument = {
           name: { type: 'string', minLength: 1, maxLength: 50, example: 'Faculdade' },
         },
       },
+      TodoPage: {
+        type: 'object',
+        required: ['content', 'page', 'size', 'totalElements', 'totalPages'],
+        properties: {
+          content: { ...list('Todo'), description: 'Tarefas desta página' },
+          page: { type: 'integer', example: 1, description: 'Página atual, começando em 1' },
+          size: { type: 'integer', example: 10, description: 'Itens por página' },
+          totalElements: {
+            type: 'integer',
+            example: 14,
+            description: 'Total de tarefas que atendem aos filtros',
+          },
+          totalPages: {
+            type: 'integer',
+            example: 2,
+            description: 'Total de páginas; 0 quando não há tarefas',
+          },
+        },
+      },
       Todo: {
         type: 'object',
         properties: {
@@ -296,7 +315,10 @@ export const openApiDocument = {
         tags: ['Categorias'],
         summary: 'Tarefas de uma categoria (relacionamento)',
         responses: {
-          200: { description: 'Tarefas da categoria', content: json(list('Todo')) },
+          200: {
+            description: 'Tarefas da categoria, na mesma ordem de GET /todos',
+            content: json(list('Todo')),
+          },
           401: unauthorized,
           404: notFound('Categoria'),
         },
@@ -305,7 +327,13 @@ export const openApiDocument = {
     '/todos': {
       get: {
         tags: ['Tarefas'],
-        summary: 'Lista as tarefas',
+        summary: 'Lista as tarefas (paginada)',
+        description:
+          'Devolve uma página de tarefas. Ordem: pendentes antes das concluídas; ' +
+          'em cada grupo, o prazo mais próximo (ou já vencido) primeiro e as sem prazo no fim. ' +
+          'Os filtros e a paginação podem ser combinados, por exemplo ' +
+          '`?completed=false&categoryId=1&page=2&size=5`. ' +
+          'Uma página depois da última devolve `content` vazio, com os totais.',
         parameters: [
           {
             name: 'completed',
@@ -319,12 +347,31 @@ export const openApiDocument = {
             description: 'Filtra por categoria. Use `none` para tarefas sem categoria',
             schema: { type: 'string', pattern: '^(none|[1-9]\\d*)$', example: 'none' },
           },
+          {
+            name: 'page',
+            in: 'query',
+            description: 'Página, começando em 1',
+            schema: { type: 'integer', minimum: 1, default: 1 },
+          },
+          {
+            name: 'size',
+            in: 'query',
+            description: 'Itens por página',
+            schema: { type: 'integer', minimum: 1, maximum: 50, default: 10 },
+          },
         ],
         responses: {
-          200: { description: 'Tarefas, da mais nova para a mais antiga', content: json(list('Todo')) },
-          400: error('Filtro inválido', {
+          200: {
+            description: 'Página de tarefas: pendentes por prazo mais próximo, concluídas no fim',
+            content: json(ref('TodoPage')),
+          },
+          400: error('Filtro ou paginação inválidos', {
             error: 'Dados inválidos',
-            details: { completed: 'Use true ou false' },
+            details: {
+              completed: 'Use true ou false',
+              page: 'Página inválida',
+              size: 'Tamanho de página deve ser no máximo 50',
+            },
           }),
           401: unauthorized,
         },

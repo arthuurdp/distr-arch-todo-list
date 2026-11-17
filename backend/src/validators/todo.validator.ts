@@ -26,7 +26,17 @@ export const updateTodoSchema = z.object({
   completed: z.boolean('Informe se a tarefa está concluída'),
 });
 
+export const DEFAULT_PAGE_SIZE = 10;
+export const MAX_PAGE_SIZE = 50;
+
+const positiveInteger = (message: string) =>
+  z.string(message).regex(/^[1-9]\d*$/, message).transform(Number);
+
 export const todoFiltersSchema = z.object({
+  page: positiveInteger('Página inválida').optional(),
+  size: positiveInteger('Tamanho de página inválido')
+    .refine((size) => size <= MAX_PAGE_SIZE, `Tamanho de página deve ser no máximo ${MAX_PAGE_SIZE}`)
+    .optional(),
   completed: z
     .enum(['true', 'false'], 'Use true ou false')
     .transform((value) => value === 'true')

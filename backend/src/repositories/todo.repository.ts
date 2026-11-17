@@ -12,22 +12,40 @@ export type TodoData = {
   categoryId: number | null;
 };
 
+export type TodoListFilters = {
+  completed?: boolean;
+  categoryId?: number | null;
+};
+
+const byUrgency = [
+  { completed: 'asc' },
+  { dueDate: { sort: 'asc', nulls: 'last' } },
+  { createdAt: 'desc' },
+  { id: 'desc' },
+] satisfies Prisma.TodoOrderByWithRelationInput[];
+
 export class TodoRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  findAllByUser(
-    userId: number,
-    filters: { completed?: boolean; categoryId?: number | null } = {},
-  ): Promise<TodoWithCategory[]> {
-    const where: Prisma.TodoWhereInput = { userId };
-    if (filters.completed !== undefined) where.completed = filters.completed;
-    if (filters.categoryId !== undefined) where.categoryId = filters.categoryId;
-
+  findAllByUser(userId: number, filters: TodoListFilters = {}): Promise<TodoWithCategory[]> {
     return this.prisma.todo.findMany({
-      where,
+      where: this.whereFor(userId, filters),
       include: withCategory,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: byUrgency,
     });
+  }
+
+  async findPageByUser(
+    userId: number,
+    filters: TodoListFilters,
+    { skip, take }: { skip: number; take: number },
+  ): Promise<{ items: TodoWithCategory[]; total: number }> {
+    const where = this.whereFor(userId, filters);
+    const [items, total] = await Promise.all([
+      this.prisma.todo.findMany({ where, include: withCategory, orderBy: byUrgency, skip, take }),
+      this.prisma.todo.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async countByUser(userId: number): Promise<{ total: number; completed: number }> {
@@ -52,5 +70,12 @@ export class TodoRepository {
 
   async delete(id: number): Promise<void> {
     await this.prisma.todo.delete({ where: { id } });
+  }
+
+  private whereFor(userId: number, filters: TodoListFilters): Prisma.TodoWhereInput {
+    const where: Prisma.TodoWhereInput = { userId };
+    if (filters.completed !== undefined) where.completed = filters.completed;
+    if (filters.categoryId !== undefined) where.categoryId = filters.categoryId;
+    return where;
   }
 }

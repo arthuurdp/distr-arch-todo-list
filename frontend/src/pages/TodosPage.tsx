@@ -12,7 +12,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { errorMessage } from '@/api/errors'
 import { categoryService } from '@/services/category.service'
 import { todoService } from '@/services/todo.service'
+import { TodoPagination } from '@/components/TodoPagination'
 import type { Category } from '@/types/category'
+import type { Page } from '@/types/page'
 import type { Todo, TodoFilters, TodoSummary } from '@/types/todo'
 
 type StatusFilter = 'all' | 'pending' | 'done'
@@ -26,8 +28,15 @@ function parseStatus(value: string | null): StatusFilter {
   return STATUS_VALUES.includes(value as StatusFilter) ? (value as StatusFilter) : 'all'
 }
 
+function parsePage(value: string | null): number {
+  const page = Number(value)
+  return Number.isInteger(page) && page > 0 ? page : 1
+}
+
+const EMPTY_PAGE: Page<Todo> = { content: [], page: 1, size: 10, totalElements: 0, totalPages: 0 }
+
 export function TodosPage() {
-  const [todos, setTodos] = useState<Todo[]>([])
+  const [todoPage, setTodoPage] = useState<Page<Todo>>(EMPTY_PAGE)
   const [listLoaded, setListLoaded] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [summary, setSummary] = useState<TodoSummary>({ total: 0, completed: 0 })
@@ -36,6 +45,8 @@ export function TodosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const status = parseStatus(searchParams.get('status'))
+  const page = parsePage(searchParams.get('page'))
+  const todos = todoPage.content
 
   const categoryName = searchParams.get('category')?.toLowerCase()
   const selectedCategory = categoryName
@@ -58,14 +69,31 @@ export function TodosPage() {
     )
   }
 
+  function setPage(value: number) {
+    updateParams((params) => {
+      if (value <= 1) params.delete('page')
+      else params.set('page', String(value))
+    })
+  }
+
+  function hrefForPage(value: number) {
+    const params = new URLSearchParams(searchParams)
+    if (value <= 1) params.delete('page')
+    else params.set('page', String(value))
+    const query = params.toString()
+    return query ? `?${query}` : '?'
+  }
+
   const setStatus = (value: StatusFilter) =>
     updateParams((params) => {
+      params.delete('page')
       if (value === 'all') params.delete('status')
       else params.set('status', value)
     })
 
   const setCategoryFilter = (value: string) =>
     updateParams((params) => {
+      params.delete('page')
       params.delete('category')
       params.delete('uncategorized')
       if (value === NO_CATEGORY) {
@@ -85,8 +113,9 @@ export function TodosPage() {
           : categoryFilter === NO_CATEGORY
             ? 'none'
             : Number(categoryFilter),
+      page: page > 1 ? page : undefined,
     }),
-    [status, categoryFilter],
+    [status, categoryFilter, page],
   )
 
   const [loading, setLoading] = useState(true)
@@ -126,7 +155,7 @@ export function TodosPage() {
       .list(filters)
       .then((loaded) => {
         if (ignore) return
-        setTodos(loaded)
+        setTodoPage(loaded)
         setListLoaded(true)
       })
       .catch((err) => {
@@ -146,6 +175,16 @@ export function TodosPage() {
       toast.error(errorMessage(err))
     }
   }, [])
+
+  const lastPage = Math.max(todoPage.totalPages, 1)
+  const outOfRange = listLoaded && todos.length === 0 && page > lastPage
+
+  useEffect(() => {
+    if (outOfRange) setPage(lastPage)
+  }, [outOfRange, lastPage])
+
+  const firstShown = (todoPage.page - 1) * todoPage.size + 1
+  const lastShown = firstShown + todos.length - 1
 
   const progress =
     summary.total === 0 ? 0 : Math.round((summary.completed / summary.total) * 100)
@@ -269,20 +308,37 @@ export function TodosPage() {
             </Select>
           </div>
 
-          {todos.length === 0 ? (
+          {outOfRange ? null : todos.length === 0 ? (
             <p className="mt-8 text-muted-foreground">Nenhuma tarefa com esses filtros.</p>
           ) : (
-            <ul aria-label="Lista de tarefas" className="mt-4 divide-y rounded-xl border bg-card">
-              {todos.map((todo) => (
-                <TodoItem
-                  key={todo.id}
-                  todo={todo}
-                  onToggle={handleToggle}
-                  onEdit={openEdit}
-                  onDelete={setDeleting}
+            <>
+              <ul aria-label="Lista de tarefas" className="mt-4 divide-y rounded-xl border bg-card">
+                {todos.map((todo) => (
+                  <TodoItem
+                    key={todo.id}
+                    todo={todo}
+                    onToggle={handleToggle}
+                    onEdit={openEdit}
+                    onDelete={setDeleting}
+                  />
+                ))}
+              </ul>
+
+              <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
+                {todoPage.totalPages > 1
+                  ? `Mostrando ${firstShown}–${lastShown} de ${todoPage.totalElements} tarefas`
+                  : `${todoPage.totalElements} ${todoPage.totalElements === 1 ? 'tarefa' : 'tarefas'}`}
+              </p>
+
+              {todoPage.totalPages > 1 && (
+                <TodoPagination
+                  page={todoPage.page}
+                  totalPages={todoPage.totalPages}
+                  hrefFor={hrefForPage}
+                  onPageChange={setPage}
                 />
-              ))}
-            </ul>
+              )}
+            </>
           )}
         </>
       )}

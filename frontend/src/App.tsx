@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { AppLayout } from '@/components/AppLayout'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider, useAuth } from '@/lib/auth'
+import { ThemeProvider } from '@/lib/theme'
 import { AboutPage } from '@/pages/AboutPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
 import { LoginPage } from '@/pages/LoginPage'
@@ -45,11 +46,13 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-        <Toaster theme="dark" position="bottom-right" />
-      </AuthProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+          <Toaster position="bottom-right" />
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }

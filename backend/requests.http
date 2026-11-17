@@ -83,8 +83,29 @@ Content-Type: application/json
 GET {{baseUrl}}/categories/{{categoryId}}/todos
 Authorization: Bearer {{token}}
 
-### Listar tarefas (filtros opcionais: completed, categoryId)
-GET {{baseUrl}}/todos?completed=false
+### Listar tarefas (página 1, 10 por página)
+# Resposta: { content, page, size, totalElements, totalPages }
+GET {{baseUrl}}/todos
+Authorization: Bearer {{token}}
+
+### Listar tarefas: página 2 com 5 por página
+GET {{baseUrl}}/todos?page=2&size=5
+Authorization: Bearer {{token}}
+
+### Listar tarefas: filtros com paginação (pendentes da categoria)
+GET {{baseUrl}}/todos?completed=false&categoryId={{categoryId}}&page=1&size=5
+Authorization: Bearer {{token}}
+
+### Listar tarefas: sem categoria
+GET {{baseUrl}}/todos?categoryId=none
+Authorization: Bearer {{token}}
+
+### Totais de tarefas (total e concluídas)
+GET {{baseUrl}}/todos/summary
+Authorization: Bearer {{token}}
+
+### Paginação inválida (400): página 0 e tamanho acima de 50
+GET {{baseUrl}}/todos?page=0&size=51
 Authorization: Bearer {{token}}
 
 ### Buscar tarefa

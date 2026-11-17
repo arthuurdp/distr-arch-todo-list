@@ -2,7 +2,8 @@ import { toTodoResponse, type TodoResponse } from '../dtos/todo.dto.js';
 import { HttpError } from '../errors.js';
 import type { CategoryRepository } from '../repositories/category.repository.js';
 import type { TodoData, TodoRepository, TodoWithCategory } from '../repositories/todo.repository.js';
-import type { CreateTodoInput, TodoFilters, UpdateTodoInput } from '../validators/todo.validator.js';
+import { DEFAULT_PAGE_SIZE, type CreateTodoInput, type TodoFilters, type UpdateTodoInput } from '../validators/todo.validator.js';
+import { toPageResponse, type PageResponse } from '../dtos/page.dto.js';
 
 export class TodoService {
   constructor(
@@ -10,9 +11,15 @@ export class TodoService {
     private readonly categoryRepository: CategoryRepository,
   ) {}
 
-  async list(userId: number, filters: TodoFilters): Promise<TodoResponse[]> {
-    const todos = await this.todoRepository.findAllByUser(userId, filters);
-    return todos.map(toTodoResponse);
+  async list(
+    userId: number,
+    { page = 1, size = DEFAULT_PAGE_SIZE, ...filters }: TodoFilters,
+  ): Promise<PageResponse<TodoResponse>> {
+    const { items, total } = await this.todoRepository.findPageByUser(userId, filters, {
+      skip: (page - 1) * size,
+      take: size,
+    });
+    return toPageResponse(items.map(toTodoResponse), page, size, total);
   }
 
   summary(userId: number): Promise<{ total: number; completed: number }> {

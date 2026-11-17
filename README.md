@@ -123,14 +123,14 @@ Pode rodar quantas vezes quiser: a cada execução, as tarefas e categorias do u
 
 Os testes exigem o **Docker aberto**: cada execução sobe um PostgreSQL descartável com Testcontainers e aplica as migrations, então nada toca no banco de desenvolvimento.
 
-**API** (68 testes):
+**API** (79 testes):
 
 ```bash
 cd backend
 npm test
 ```
 
-**Front-end** (29 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
+**Front-end** (35 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
 
 ```bash
 cd frontend
@@ -149,6 +149,7 @@ O Playwright sobe sozinho uma API (porta 3100, com banco descartável) e um fron
 | `frontend/e2e/auth.spec.ts`        | Login, cadastro, token no cabeçalho, cookie httpOnly, renovação automática, sair, rota protegida |
 | `frontend/e2e/todos.spec.ts`       | **CRUD inteiro de tarefas**: criar, listar, editar, concluir, filtrar, excluir |
 | `frontend/e2e/categories.spec.ts`  | CRUD de categorias e tarefas de uma categoria |
+| `frontend/e2e/theme.spec.ts`       | Modo escuro por padrão, troca para o claro e a escolha mantida ao recarregar |
 
 ## Rotas da API
 
@@ -171,7 +172,7 @@ Base: `http://localhost:8080/api`. As rotas protegidas exigem o cabeçalho `Auth
 | PUT    | `/categories/:id`        | Protegida | Renomeia uma categoria |
 | DELETE | `/categories/:id`        | Protegida | Exclui uma categoria (as tarefas ficam sem categoria) |
 | GET    | `/categories/:id/todos`  | Protegida | **Relacionamento:** tarefas da categoria |
-| GET    | `/todos`                 | Protegida | Lista as tarefas. Filtros: `completed` (`true` ou `false`) e `categoryId` (id ou `none`) |
+| GET    | `/todos`                 | Protegida | Lista as tarefas, paginada. Filtros: `completed` (`true` ou `false`) e `categoryId` (id ou `none`). Paginação: `page` (a partir de 1) e `size` (padrão 10, máximo 50) |
 | GET    | `/todos/summary`         | Protegida | Total de tarefas e quantas estão concluídas |
 | POST   | `/todos`                 | Protegida | Cria uma tarefa |
 | GET    | `/todos/:id`             | Protegida | Busca uma tarefa |
@@ -194,6 +195,8 @@ São dois tokens, cada um com um papel:
 - **Limite:** um access token já emitido vale até expirar; por isso a validade curta.
 
 **Relacionamentos:** um usuário tem muitas categorias e muitas tarefas; uma categoria tem muitas tarefas. Cada usuário só enxerga os próprios dados: o recurso de outra pessoa responde `404`.
+
+**Ordem das tarefas** (em `GET /todos` e `GET /categories/:id/todos`): pendentes antes das concluídas; em cada grupo, o prazo mais próximo primeiro (as vencidas aparecem no topo) e as tarefas sem prazo no fim. Em caso de empate, a mais nova vem antes.
 
 **Erros** sempre em JSON, com mensagem para o cliente:
 
@@ -225,7 +228,7 @@ Todas as requisições estão prontas em [backend/requests.http](backend/request
 | Tela de login que guarda e usa o token | [frontend/src/pages/LoginPage.tsx](frontend/src/pages/LoginPage.tsx), [frontend/src/lib/auth.tsx](frontend/src/lib/auth.tsx) e [frontend/src/api](frontend/src/api) (token em memória, cabeçalho e renovação) |
 | Framework de UI | Tailwind CSS com shadcn/ui |
 | Layout consistente e responsivo | Cabeçalho com navegação e rodapé em [frontend/src/components/AppLayout.tsx](frontend/src/components/AppLayout.tsx) |
-| Componente de terceiro (shadcn/ui) | [frontend/src/components/ui](frontend/src/components/ui): Dialog, Alert Dialog, Sheet, Select, Tabs, Checkbox, Progress, Dropdown Menu, Sonner e outros |
+| Componente de terceiro (shadcn/ui) | [frontend/src/components/ui](frontend/src/components/ui): Dialog, Alert Dialog, Sheet, Select, Tabs, Checkbox, Progress, Dropdown Menu, Pagination, Sonner e outros |
 | Testes do front-end com CRUD inteiro | [frontend/e2e/todos.spec.ts](frontend/e2e/todos.spec.ts) |
 | Página sobre os membros do grupo | Página **Sobre**; os nomes ficam em [frontend/src/data/members.ts](frontend/src/data/members.ts) |
 
