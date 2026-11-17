@@ -1,13 +1,18 @@
 node_modules/
 dist/
 
-*.sqlite
-*.sqlite-journal
-
 .env
+.env.*
+!.env.example
 
 test-results/
 playwright-report/
+blob-report/
+coverage/
+
+*.log
+*.tsbuildinfo
+.DS_Store
 
 .idea/
 .vscode/
