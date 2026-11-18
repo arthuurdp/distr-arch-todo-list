@@ -200,22 +200,31 @@ export function TodosPage() {
     setFormOpen(true)
   }
 
-  function handleSaved(_saved: Todo, created: boolean) {
+  function replaceInPage(saved: Todo) {
+    setTodoPage((current) => ({
+      ...current,
+      content: current.content.map((item) => (item.id === saved.id ? saved : item)),
+    }))
+  }
+
+  function handleSaved(saved: Todo, created: boolean) {
     setFormOpen(false)
     toast.success(created ? 'Tarefa criada' : 'Tarefa atualizada')
-    refresh()
+    if (created) refresh()
+    else replaceInPage(saved)
   }
 
   async function handleToggle(todo: Todo) {
     try {
-      await todoService.update(todo.id, {
+      const saved = await todoService.update(todo.id, {
         title: todo.title,
         description: todo.description,
         dueDate: todo.dueDate,
         categoryId: todo.categoryId,
         completed: !todo.completed,
       })
-      await refresh()
+      replaceInPage(saved)
+      setSummary(await todoService.summary())
     } catch (err) {
       toast.error(errorMessage(err))
     }

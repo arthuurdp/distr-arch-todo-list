@@ -81,6 +81,31 @@ test.describe('CRUD de tarefas', () => {
     await expect(todoItem(page, 'Estudar Express')).toBeVisible()
   })
 
+  test('editar mantém a tarefa no lugar até recarregar', async ({ page, request }) => {
+    const user = await createUser(request)
+    const category = await createCategory(request, user, 'Casa')
+    await createTodo(request, user, { title: 'Prazo longo', dueDate: '2099-12-01', categoryId: category.id })
+    await createTodo(request, user, { title: 'Prazo curto', dueDate: '2099-01-01', categoryId: category.id })
+    await login(page, user)
+    await page.goto('/?category=casa')
+    const items = todoList(page).getByRole('listitem')
+    await expect(items).toHaveText([/Prazo curto/, /Prazo longo/])
+
+    await page.getByRole('button', { name: 'Editar "Prazo curto"' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Editar tarefa' })
+    await dialog.getByLabel(/Prazo/).fill('2099-12-31')
+    await dialog.getByLabel('Categoria').click()
+    await page.getByRole('option', { name: 'Sem categoria' }).click()
+    await dialog.getByRole('button', { name: 'Salvar alterações' }).click()
+
+    await expect(page.getByText('Tarefa atualizada')).toBeVisible()
+    await expect(items).toHaveText([/Prazo curto/, /Prazo longo/])
+    await expect(items.first()).toContainText('Até 31/12/2099')
+
+    await page.reload()
+    await expect(items).toHaveText([/Prazo longo/])
+  })
+
   test('conclui uma tarefa e filtra por situação', async ({ page, request }) => {
     const user = await createUser(request)
     await createTodo(request, user, { title: 'Lavar a louça' })
@@ -131,7 +156,10 @@ test.describe('CRUD de tarefas', () => {
     await expect(todoItem(page, 'Pagar a conta de luz')).toBeVisible()
 
     await page.getByRole('checkbox', { name: 'Marcar "Pagar a conta de luz" como concluída' }).click()
+    await expect(page.getByRole('checkbox', { name: 'Reabrir "Pagar a conta de luz"' })).toBeChecked()
 
+    await page.getByRole('tab', { name: 'Todas' }).click()
+    await page.getByRole('tab', { name: 'Atrasadas' }).click()
     await expect(page.getByText('Nenhuma tarefa atrasada.')).toBeVisible()
   })
 
@@ -229,7 +257,7 @@ test.describe('CRUD de tarefas', () => {
     await expect(todoItem(page, 'Lavar a louça')).toHaveCount(0)
   })
 
-  test('some da aba Pendentes ao concluir', async ({ page, request }) => {
+  test('concluir mantém a tarefa no lugar até trocar de aba', async ({ page, request }) => {
     const user = await createUser(request)
     await createTodo(request, user, { title: 'Lavar a louça' })
     await createTodo(request, user, { title: 'Ler o capítulo 3' })
@@ -237,11 +265,40 @@ test.describe('CRUD de tarefas', () => {
 
     await page.getByRole('tab', { name: 'Pendentes' }).click()
     await expect(page).toHaveURL('/?status=pending')
-    await page.getByRole('checkbox', { name: 'Marcar "Lavar a louça" como concluída' }).click()
+    const items = todoList(page).getByRole('listitem')
+    await expect(items).toHaveText([/Ler o capítulo 3/, /Lavar a louça/])
 
-    await expect(todoItem(page, 'Lavar a louça')).toHaveCount(0)
-    await expect(todoItem(page, 'Ler o capítulo 3')).toBeVisible()
+    await page.getByRole('checkbox', { name: 'Marcar "Ler o capítulo 3" como concluída' }).click()
+
     await expect(page.getByText('1 de 2 concluídas')).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: 'Reabrir "Ler o capítulo 3"' })).toBeChecked()
+    await expect(items).toHaveText([/Ler o capítulo 3/, /Lavar a louça/])
+
+    await page.getByRole('checkbox', { name: 'Reabrir "Ler o capítulo 3"' }).click()
+    await expect(page.getByText('0 de 2 concluídas')).toBeVisible()
+    await page.getByRole('checkbox', { name: 'Marcar "Ler o capítulo 3" como concluída' }).click()
+    await expect(page.getByText('1 de 2 concluídas')).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Todas' }).click()
+    await page.getByRole('tab', { name: 'Pendentes' }).click()
+    await expect(items).toHaveText([/Lavar a louça/])
+  })
+
+  test('concluir não muda a ordem até recarregar a página', async ({ page, request }) => {
+    const user = await createUser(request)
+    await createTodo(request, user, { title: 'Lavar a louça' })
+    await createTodo(request, user, { title: 'Ler o capítulo 3' })
+    await login(page, user)
+    const items = todoList(page).getByRole('listitem')
+    await expect(items).toHaveText([/Ler o capítulo 3/, /Lavar a louça/])
+
+    await page.getByRole('checkbox', { name: 'Marcar "Ler o capítulo 3" como concluída' }).click()
+
+    await expect(page.getByRole('checkbox', { name: 'Reabrir "Ler o capítulo 3"' })).toBeChecked()
+    await expect(items).toHaveText([/Ler o capítulo 3/, /Lavar a louça/])
+
+    await page.reload()
+    await expect(items).toHaveText([/Lavar a louça/, /Ler o capítulo 3/])
   })
 
   test('pagina a lista de 10 em 10 e guarda a página na URL', async ({ page, request }) => {
