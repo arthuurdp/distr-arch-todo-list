@@ -123,14 +123,14 @@ Pode rodar quantas vezes quiser: a cada execução, as tarefas e categorias do u
 
 Os testes exigem o **Docker aberto**: cada execução sobe um PostgreSQL descartável com Testcontainers e aplica as migrations, então nada toca no banco de desenvolvimento.
 
-**API** (79 testes):
+**API** (81 testes):
 
 ```bash
 cd backend
 npm test
 ```
 
-**Front-end** (35 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
+**Front-end** (36 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
 
 ```bash
 cd frontend
@@ -172,7 +172,7 @@ Base: `http://localhost:8080/api`. As rotas protegidas exigem o cabeçalho `Auth
 | PUT    | `/categories/:id`        | Protegida | Renomeia uma categoria |
 | DELETE | `/categories/:id`        | Protegida | Exclui uma categoria (as tarefas ficam sem categoria) |
 | GET    | `/categories/:id/todos`  | Protegida | **Relacionamento:** tarefas da categoria |
-| GET    | `/todos`                 | Protegida | Lista as tarefas, paginada. Filtros: `completed` (`true` ou `false`) e `categoryId` (id ou `none`). Paginação: `page` (a partir de 1) e `size` (padrão 10, máximo 50) |
+| GET    | `/todos`                 | Protegida | Lista as tarefas, paginada. Filtros: `completed` (`true` ou `false`), `categoryId` (id ou `none`) e `dueBefore` (prazo antes da data, usado na aba Atrasadas). Paginação: `page` (a partir de 1) e `size` (padrão 10, máximo 50) |
 | GET    | `/todos/summary`         | Protegida | Total de tarefas e quantas estão concluídas |
 | POST   | `/todos`                 | Protegida | Cria uma tarefa |
 | GET    | `/todos/:id`             | Protegida | Busca uma tarefa |

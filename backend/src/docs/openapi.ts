@@ -359,6 +359,14 @@ export const openApiDocument = {
             description: 'Itens por página',
             schema: { type: 'integer', minimum: 1, maximum: 50, default: 10 },
           },
+          {
+            name: 'dueBefore',
+            in: 'query',
+            description:
+              'Só tarefas com prazo antes desta data (exclusivo). ' +
+              'Com `completed=false` e a data de hoje, lista as atrasadas.',
+            schema: { type: 'string', format: 'date', example: '2026-11-18' },
+          },
         ],
         responses: {
           200: {

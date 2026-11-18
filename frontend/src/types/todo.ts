@@ -22,6 +22,7 @@ export type UpdateTodoInput = TodoInput & { completed: boolean }
 export type TodoFilters = {
   completed?: boolean
   categoryId?: number | 'none'
+  dueBefore?: string
   page?: number
 }
 

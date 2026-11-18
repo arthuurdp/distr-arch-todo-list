@@ -15,6 +15,7 @@ export type TodoData = {
 export type TodoListFilters = {
   completed?: boolean;
   categoryId?: number | null;
+  dueBefore?: Date;
 };
 
 const byUrgency = [
@@ -76,6 +77,7 @@ export class TodoRepository {
     const where: Prisma.TodoWhereInput = { userId };
     if (filters.completed !== undefined) where.completed = filters.completed;
     if (filters.categoryId !== undefined) where.categoryId = filters.categoryId;
+    if (filters.dueBefore !== undefined) where.dueDate = { lt: filters.dueBefore };
     return where;
   }
 }

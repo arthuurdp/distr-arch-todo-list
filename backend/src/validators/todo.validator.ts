@@ -46,6 +46,10 @@ export const todoFiltersSchema = z.object({
     .regex(/^(none|[1-9]\d*)$/, 'Categoria inválida')
     .transform((value) => (value === 'none' ? null : Number(value)))
     .optional(),
+  dueBefore: z.iso
+    .date('Data deve estar no formato AAAA-MM-DD')
+    .transform((value) => new Date(value))
+    .optional(),
 });
 
 export type CreateTodoInput = z.infer<typeof createTodoSchema>;

@@ -16,13 +16,14 @@ import { TodoPagination } from '@/components/TodoPagination'
 import type { Category } from '@/types/category'
 import type { Page } from '@/types/page'
 import type { Todo, TodoFilters, TodoSummary } from '@/types/todo'
+import { todayIso } from '@/lib/dates'
 
-type StatusFilter = 'all' | 'pending' | 'done'
+type StatusFilter = 'all' | 'pending' | 'overdue' | 'done'
 
 const ALL_CATEGORIES = 'all'
 const NO_CATEGORY = 'none'
 
-const STATUS_VALUES: StatusFilter[] = ['all', 'pending', 'done']
+const STATUS_VALUES: StatusFilter[] = ['all', 'pending', 'overdue', 'done']
 
 function parseStatus(value: string | null): StatusFilter {
   return STATUS_VALUES.includes(value as StatusFilter) ? (value as StatusFilter) : 'all'
@@ -101,12 +102,13 @@ export function TodosPage() {
         return
       }
       const category = categories.find((item) => String(item.id) === value)
-      if (category) params.set('category', category.name)
+      if (category) params.set('category', category.name.toLowerCase())
     })
 
   const filters = useMemo<TodoFilters>(
     () => ({
       completed: status === 'all' ? undefined : status === 'done',
+      dueBefore: status === 'overdue' ? todayIso() : undefined,
       categoryId:
         categoryFilter === ALL_CATEGORIES
           ? undefined
@@ -186,8 +188,7 @@ export function TodosPage() {
   const firstShown = (todoPage.page - 1) * todoPage.size + 1
   const lastShown = firstShown + todos.length - 1
 
-  const progress =
-    summary.total === 0 ? 0 : Math.round((summary.completed / summary.total) * 100)
+  const progress = summary.total === 0 ? 0 : Math.round((summary.completed / summary.total) * 100)
 
   function openCreate() {
     setEditing(null)
@@ -286,6 +287,9 @@ export function TodosPage() {
                 <TabsTrigger value="pending" className="px-3">
                   Pendentes
                 </TabsTrigger>
+                <TabsTrigger value="overdue" className="px-3">
+                  Atrasadas
+                </TabsTrigger>
                 <TabsTrigger value="done" className="px-3">
                   Concluídas
                 </TabsTrigger>
@@ -309,7 +313,11 @@ export function TodosPage() {
           </div>
 
           {outOfRange ? null : todos.length === 0 ? (
-            <p className="mt-8 text-muted-foreground">Nenhuma tarefa com esses filtros.</p>
+            <p className="mt-8 text-muted-foreground">
+              {status === 'overdue' && categoryFilter === ALL_CATEGORIES
+                ? 'Nenhuma tarefa atrasada.'
+                : 'Nenhuma tarefa com esses filtros.'}
+            </p>
           ) : (
             <>
               <ul aria-label="Lista de tarefas" className="mt-4 divide-y rounded-xl border bg-card">

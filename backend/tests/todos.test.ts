@@ -174,6 +174,28 @@ describe('GET /api/todos', () => {
     expect(res.status).toBe(400);
     expect(res.body.details).toEqual({ categoryId: 'Categoria inválida' });
   });
+
+  it('filtra por prazo antes de uma data (atrasadas)', async () => {
+    await createTodo({ title: 'Venceu ontem', dueDate: '2026-11-17' });
+    await createTodo({ title: 'Vence hoje', dueDate: '2026-11-18' });
+    await createTodo({ title: 'Sem prazo' });
+    const done = await createTodo({ title: 'Concluída e vencida', dueDate: '2026-11-01' });
+    await api
+      .put(`/api/todos/${done.id}`)
+      .set(auth)
+      .send({ title: 'Concluída e vencida', dueDate: '2026-11-01', completed: true });
+
+    const res = await api.get('/api/todos?completed=false&dueBefore=2026-11-18').set(auth);
+
+    expect(res.body.content.map((todo) => todo.title)).toEqual(['Venceu ontem']);
+  });
+
+  it('recusa data inválida no filtro de prazo', async () => {
+    const res = await api.get('/api/todos?dueBefore=18/11/2026').set(auth);
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toEqual({ dueBefore: 'Data deve estar no formato AAAA-MM-DD' });
+  });
 });
 
 describe('ordenação das tarefas', () => {

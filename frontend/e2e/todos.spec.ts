@@ -101,6 +101,40 @@ test.describe('CRUD de tarefas', () => {
     await expect(todoItem(page, 'Ler o capítulo 3')).toHaveCount(0)
   })
 
+  test('mostra só as pendentes vencidas na aba Atrasadas', async ({ page, request }) => {
+    const dayFromToday = (days: number) => {
+      const date = new Date()
+      date.setDate(date.getDate() + days)
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${date.getFullYear()}-${month}-${day}`
+    }
+    const user = await createUser(request)
+    await createTodo(request, user, { title: 'Pagar a conta de luz', dueDate: dayFromToday(-2) })
+    await createTodo(request, user, { title: 'Vence hoje', dueDate: dayFromToday(0) })
+    await createTodo(request, user, { title: 'Sem prazo' })
+    const done = await createTodo(request, user, { title: 'Já entregue', dueDate: dayFromToday(-5) })
+    await request.put(`/api/todos/${done.id}`, {
+      headers: user.headers,
+      data: { title: 'Já entregue', dueDate: dayFromToday(-5), completed: true },
+    })
+    await login(page, user)
+
+    const filtered = page.waitForRequest((req) => req.url().includes('dueBefore='))
+    await page.getByRole('tab', { name: 'Atrasadas' }).click()
+
+    const params = new URL((await filtered).url()).searchParams
+    expect(params.get('dueBefore')).toBe(dayFromToday(0))
+    expect(params.get('completed')).toBe('false')
+    await expect(page).toHaveURL('/?status=overdue')
+    await expect(todoList(page).getByRole('listitem')).toHaveCount(1)
+    await expect(todoItem(page, 'Pagar a conta de luz')).toBeVisible()
+
+    await page.getByRole('checkbox', { name: 'Marcar "Pagar a conta de luz" como concluída' }).click()
+
+    await expect(page.getByText('Nenhuma tarefa atrasada.')).toBeVisible()
+  })
+
   test('filtra por categoria', async ({ page, request }) => {
     const user = await createUser(request)
     const category = await createCategory(request, user, 'Casa')
@@ -113,7 +147,7 @@ test.describe('CRUD de tarefas', () => {
     await page.getByRole('option', { name: 'Casa' }).click()
 
     expect(new URL((await filtered).url()).searchParams.get('categoryId')).toBe(String(category.id))
-    await expect(page).toHaveURL('/?category=Casa')
+    await expect(page).toHaveURL('/?category=casa')
     await expect(todoItem(page, 'Lavar a louça')).toBeVisible()
     await expect(todoItem(page, 'Ler o capítulo 3')).toHaveCount(0)
 
