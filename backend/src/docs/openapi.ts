@@ -28,7 +28,7 @@ const sessionResponse = (description: string) => ({
   description,
   headers: {
     'Set-Cookie': {
-      description: 'Cookie `refresh_token` (httpOnly, SameSite=Strict, Path=/api/users)',
+      description: 'Cookie `refresh_token` (httpOnly, SameSite=Strict, Path=/api/v1/auth)',
       schema: { type: 'string' },
     },
   },
@@ -42,15 +42,16 @@ export const openApiDocument = {
     version: '1.0.0',
     description:
       'API RESTful de tarefas com autenticação JWT.\n\n' +
-      '**Como testar aqui:** execute `POST /users/login`, copie o `token` da resposta, ' +
+      '**Como testar aqui:** execute `POST /auth/login`, copie o `token` da resposta, ' +
       'clique em **Authorize** e cole o token. As rotas com cadeado passam a enviar ' +
       '`Authorization: Bearer <token>`.\n\n' +
       'O access token vale 15 minutos. O refresh token fica em cookie httpOnly e é usado ' +
-      'por `POST /users/refresh`.',
+      'por `POST /auth/refresh`.',
   },
-  servers: [{ url: '/api' }],
+  servers: [{ url: '/api/v1' }],
   tags: [
-    { name: 'Usuários', description: 'Cadastro, login e sessão' },
+    { name: 'Autenticação', description: 'Cadastro, login e sessão' },
+    { name: 'Usuários', description: 'Dados do usuário autenticado' },
     { name: 'Categorias', description: 'Categorias do usuário autenticado' },
     { name: 'Tarefas', description: 'Tarefas do usuário autenticado' },
   ],
@@ -192,9 +193,9 @@ export const openApiDocument = {
   },
   security: [{ bearerAuth: [] }],
   paths: {
-    '/users/register': {
+    '/auth/register': {
       post: {
-        tags: ['Usuários'],
+        tags: ['Autenticação'],
         summary: 'Cadastro (signup)',
         security: [],
         requestBody: { required: true, content: json(ref('RegisterInput')) },
@@ -205,9 +206,9 @@ export const openApiDocument = {
         },
       },
     },
-    '/users/login': {
+    '/auth/login': {
       post: {
-        tags: ['Usuários'],
+        tags: ['Autenticação'],
         summary: 'Login',
         description: 'Retorna o access token JWT e grava o refresh token em cookie.',
         security: [],
@@ -219,9 +220,9 @@ export const openApiDocument = {
         },
       },
     },
-    '/users/refresh': {
+    '/auth/refresh': {
       post: {
-        tags: ['Usuários'],
+        tags: ['Autenticação'],
         summary: 'Renova a sessão',
         description:
           'Troca o refresh token do cookie por um novo access token. O refresh token usado ' +
@@ -235,9 +236,9 @@ export const openApiDocument = {
         },
       },
     },
-    '/users/logout': {
+    '/auth/logout': {
       post: {
-        tags: ['Usuários'],
+        tags: ['Autenticação'],
         summary: 'Sair',
         description: 'Revoga o refresh token no banco e apaga o cookie.',
         security: [{ refreshCookie: [] }],

@@ -69,7 +69,7 @@ test.describe('CRUD de categorias', () => {
     await expect(categoryItem(page, 'Faculdade')).toContainText('2 tarefas')
     await expect(categoryItem(page, 'Casa')).toContainText('1 tarefa')
 
-    const todosResponse = page.waitForResponse(`**/api/categories/${studies.id}/todos`)
+    const todosResponse = page.waitForResponse(`**/api/v1/categories/${studies.id}/todos`)
     await categoryItem(page, 'Faculdade').getByRole('button', { name: 'Ver tarefas' }).click()
     expect((await todosResponse).status()).toBe(200)
 

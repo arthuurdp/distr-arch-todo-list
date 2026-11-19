@@ -139,7 +139,7 @@ test.describe('CRUD de tarefas', () => {
     await createTodo(request, user, { title: 'Vence hoje', dueDate: dayFromToday(0) })
     await createTodo(request, user, { title: 'Sem prazo' })
     const done = await createTodo(request, user, { title: 'Já entregue', dueDate: dayFromToday(-5) })
-    await request.put(`/api/todos/${done.id}`, {
+    await request.put(`/api/v1/todos/${done.id}`, {
       headers: user.headers,
       data: { title: 'Já entregue', dueDate: dayFromToday(-5), completed: true },
     })
@@ -170,7 +170,7 @@ test.describe('CRUD de tarefas', () => {
     await createTodo(request, user, { title: 'Ler o capítulo 3' })
     await login(page, user)
 
-    const filtered = page.waitForRequest((req) => req.url().includes('/api/todos?categoryId='))
+    const filtered = page.waitForRequest((req) => req.url().includes('/api/v1/todos?categoryId='))
     await page.getByRole('combobox', { name: 'Filtrar por categoria' }).click()
     await page.getByRole('option', { name: 'Casa' }).click()
 
@@ -218,14 +218,14 @@ test.describe('CRUD de tarefas', () => {
     const done = await createTodo(request, user, { title: 'Lavar a louça', categoryId: category.id })
     await createTodo(request, user, { title: 'Passar pano', categoryId: category.id })
     await createTodo(request, user, { title: 'Ler o capítulo 3' })
-    await request.put(`/api/todos/${done.id}`, {
+    await request.put(`/api/v1/todos/${done.id}`, {
       headers: user.headers,
       data: { title: 'Lavar a louça', categoryId: category.id, completed: true },
     })
     await login(page, user)
 
     const filtered = page.waitForRequest(
-      (req) => req.url().includes('/api/todos?') && req.url().includes('completed=true'),
+      (req) => req.url().includes('/api/v1/todos?') && req.url().includes('completed=true'),
     )
     await page.getByRole('tab', { name: 'Concluídas' }).click()
 

@@ -49,7 +49,7 @@ test.describe('autenticação', () => {
   test('envia o access token no cabeçalho e não o guarda no navegador', async ({ page, request }) => {
     const user = await createUser(request)
     const todosRequest = page.waitForRequest(
-      (req) => req.url().endsWith('/api/todos') && req.method() === 'GET',
+      (req) => req.url().endsWith('/api/v1/todos') && req.method() === 'GET',
     )
 
     await login(page, user)
@@ -67,7 +67,7 @@ test.describe('autenticação', () => {
 
     const cookie = (await context.cookies()).find((item) => item.name === 'refresh_token')
 
-    expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Strict', path: '/api/users' })
+    expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Strict', path: '/api/v1/auth' })
     expect(await page.evaluate(() => document.cookie)).not.toContain('refresh_token')
   })
 
@@ -98,7 +98,7 @@ test.describe('autenticação', () => {
     await page.getByRole('menuitem', { name: 'Sair' }).click()
     await expect(page).toHaveURL('/login')
 
-    const res = await request.post('/api/users/refresh', {
+    const res = await request.post('/api/v1/auth/refresh', {
       headers: { Cookie: `refresh_token=${cookie?.value}` },
     })
     expect(res.status()).toBe(401)
@@ -113,12 +113,12 @@ test.describe('autenticação', () => {
     await expect(page.getByRole('heading', { name: 'Categorias', level: 1 })).toBeVisible()
 
     let rejected = false
-    await page.route('**/api/todos', async (route) => {
+    await page.route('**/api/v1/todos', async (route) => {
       if (rejected) return route.continue()
       rejected = true
       await route.fulfill({ status: 401, json: { error: 'Token inválido ou expirado' } })
     })
-    const refresh = page.waitForResponse('**/api/users/refresh')
+    const refresh = page.waitForResponse('**/api/v1/auth/refresh')
 
     await nav.getByRole('link', { name: 'Tarefas' }).click()
 

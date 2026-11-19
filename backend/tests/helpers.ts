@@ -16,7 +16,7 @@ export async function createTestApi() {
 export type TestApi = Awaited<ReturnType<typeof createTestApi>>;
 
 export async function registerUser(api: TestApi, overrides = {}) {
-  const res = await api.post('/api/users/register').send({
+  const res = await api.post('/api/v1/auth/register').send({
     name: 'Ana Teste',
     email: 'ana@teste.com',
     password: 'Senha@123',

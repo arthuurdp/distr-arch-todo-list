@@ -8,10 +8,10 @@ beforeEach(async () => {
   api = await createTestApi();
 });
 
-describe('POST /api/users/register', () => {
+describe('POST /api/v1/auth/register', () => {
   it('cria o usuário e retorna o token', async () => {
     const res = await api
-      .post('/api/users/register')
+      .post('/api/v1/auth/register')
       .send({ name: 'Ana Teste', email: 'Ana@Teste.com', password: 'Senha@123' });
 
     expect(res.status).toBe(201);
@@ -25,7 +25,7 @@ describe('POST /api/users/register', () => {
     await registerUser(api);
 
     const res = await api
-      .post('/api/users/register')
+      .post('/api/v1/auth/register')
       .send({ name: 'Outra Ana', email: 'ANA@teste.com', password: 'Senha@123' });
 
     expect(res.status).toBe(409);
@@ -34,7 +34,7 @@ describe('POST /api/users/register', () => {
 
   it('valida os campos', async () => {
     const res = await api
-      .post('/api/users/register')
+      .post('/api/v1/auth/register')
       .send({ name: '', email: 'nao-e-email', password: '123' });
 
     expect(res.status).toBe(400);
@@ -50,7 +50,7 @@ describe('POST /api/users/register', () => {
 
   it('responde 400 para JSON mal formado', async () => {
     const res = await api
-      .post('/api/users/register')
+      .post('/api/v1/auth/register')
       .set('Content-Type', 'application/json')
       .send('{"name":');
 
@@ -59,14 +59,14 @@ describe('POST /api/users/register', () => {
   });
 });
 
-describe('POST /api/users/login', () => {
+describe('POST /api/v1/auth/login', () => {
   beforeEach(async () => {
     await registerUser(api);
   });
 
   it('retorna o token JWT com credenciais corretas', async () => {
     const res = await api
-      .post('/api/users/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'ana@teste.com', password: 'Senha@123' });
 
     expect(res.status).toBe(200);
@@ -76,7 +76,7 @@ describe('POST /api/users/login', () => {
 
   it('recusa senha incorreta', async () => {
     const res = await api
-      .post('/api/users/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'ana@teste.com', password: 'senha-errada' });
 
     expect(res.status).toBe(401);
@@ -85,7 +85,7 @@ describe('POST /api/users/login', () => {
 
   it('dá a mesma resposta para email inexistente', async () => {
     const res = await api
-      .post('/api/users/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'ninguem@teste.com', password: 'Senha@123' });
 
     expect(res.status).toBe(401);
@@ -93,7 +93,7 @@ describe('POST /api/users/login', () => {
   });
 
   it('valida os campos', async () => {
-    const res = await api.post('/api/users/login').send({});
+    const res = await api.post('/api/v1/auth/login').send({});
 
     expect(res.status).toBe(400);
     expect(res.body.details).toEqual({
@@ -103,25 +103,25 @@ describe('POST /api/users/login', () => {
   });
 });
 
-describe('GET /api/users/me', () => {
+describe('GET /api/v1/users/me', () => {
   it('retorna o usuário dono do token', async () => {
     const { auth } = await registerUser(api);
 
-    const res = await api.get('/api/users/me').set(auth);
+    const res = await api.get('/api/v1/users/me').set(auth);
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ id: 1, name: 'Ana Teste', email: 'ana@teste.com' });
   });
 
   it('exige o token', async () => {
-    const res = await api.get('/api/users/me');
+    const res = await api.get('/api/v1/users/me');
 
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('Token não informado');
   });
 
   it('recusa token inválido', async () => {
-    const res = await api.get('/api/users/me').set('Authorization', 'Bearer token-falso');
+    const res = await api.get('/api/v1/users/me').set('Authorization', 'Bearer token-falso');
 
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('Token inválido ou expirado');
@@ -131,7 +131,7 @@ describe('GET /api/users/me', () => {
     const forged = jwt.sign({}, 'outra-chave', { subject: '1' });
     await registerUser(api);
 
-    const res = await api.get('/api/users/me').set('Authorization', `Bearer ${forged}`);
+    const res = await api.get('/api/v1/users/me').set('Authorization', `Bearer ${forged}`);
 
     expect(res.status).toBe(401);
   });
@@ -139,7 +139,7 @@ describe('GET /api/users/me', () => {
 
 describe('rotas inexistentes', () => {
   it('respondem 404 em JSON', async () => {
-    const res = await api.get('/api/nao-existe');
+    const res = await api.get('/api/v1/nao-existe');
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Rota não encontrada');
@@ -148,29 +148,48 @@ describe('rotas inexistentes', () => {
 
 describe('documentação', () => {
   it('serve a especificação OpenAPI com todas as rotas', async () => {
-    const res = await api.get('/api/docs.json');
+    const res = await api.get('/api/v1/docs.json');
 
     expect(res.status).toBe(200);
     expect(res.body.openapi).toBe('3.0.3');
+    expect(res.body.servers).toEqual([{ url: '/api/v1' }]);
     expect(Object.keys(res.body.paths).sort()).toEqual([
+      '/auth/login',
+      '/auth/logout',
+      '/auth/refresh',
+      '/auth/register',
       '/categories',
       '/categories/{id}',
       '/categories/{id}/todos',
       '/todos',
       '/todos/summary',
       '/todos/{id}',
-      '/users/login',
-      '/users/logout',
       '/users/me',
-      '/users/refresh',
-      '/users/register',
     ]);
   });
 
   it('serve o Swagger UI', async () => {
-    const res = await api.get('/api/docs/');
+    const res = await api.get('/api/v1/docs/');
 
     expect(res.status).toBe(200);
     expect(res.text).toContain('swagger-ui');
+  });
+});
+
+describe('versionamento', () => {
+  it('as rotas antigas, sem versão, não existem mais', async () => {
+    const responses = await Promise.all([
+      api.get('/api/todos'),
+      api.post('/api/users/login').send({ email: 'ana@teste.com', password: 'Senha@123' }),
+    ]);
+
+    expect(responses.map((res) => res.status)).toEqual([404, 404]);
+  });
+
+  it('o health check fica fora da versão', async () => {
+    const res = await api.get('/api/health');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok' });
   });
 });

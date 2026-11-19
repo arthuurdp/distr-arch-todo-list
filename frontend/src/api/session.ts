@@ -32,7 +32,7 @@ export function notifyUnauthorized() {
   onUnauthorized()
 }
 
-const refreshClient = axios.create({ baseURL: '/api' })
+const refreshClient = axios.create({ baseURL: '/api/v1' })
 
 function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
   return navigator.locks ? navigator.locks.request('todolist.refresh', task) : task()
@@ -40,7 +40,7 @@ function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
 
 async function requestNewSession(): Promise<AuthResponse | null> {
   try {
-    const { data } = await refreshClient.post<AuthResponse>('/users/refresh')
+    const { data } = await refreshClient.post<AuthResponse>('/auth/refresh')
     session.start(data.token)
     return data
   } catch (error) {

@@ -13,3 +13,5 @@ export type AuthConfig = Pick<
   typeof config,
   'jwtSecret' | 'jwtExpiresIn' | 'refreshTokenDays' | 'cookieSecure'
 >;
+
+export const API_PREFIX = '/api/v1';

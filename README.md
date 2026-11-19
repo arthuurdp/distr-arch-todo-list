@@ -25,8 +25,8 @@ Sobem três serviços: `postgres`, `backend` e `frontend`. O backend aplica as m
 | O quê      | Endereço |
 |------------|----------|
 | Aplicação  | http://localhost:5173 |
-| API        | http://localhost:8080/api |
-| Swagger    | http://localhost:8080/api/docs |
+| API        | http://localhost:8080/api/v1 |
+| Swagger    | http://localhost:8080/api/v1/docs |
 | PostgreSQL | `localhost:5432`, banco, usuário e senha `todolist` |
 
 Abra http://localhost:5173, crie uma conta em **Criar conta** e use a aplicação.
@@ -123,14 +123,14 @@ Pode rodar quantas vezes quiser: a cada execução, as tarefas e categorias do u
 
 Os testes exigem o **Docker aberto**: cada execução sobe um PostgreSQL descartável com Testcontainers e aplica as migrations, então nada toca no banco de desenvolvimento.
 
-**API** (81 testes):
+**API** (83 testes):
 
 ```bash
 cd backend
 npm test
 ```
 
-**Front-end** (36 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
+**Front-end** (38 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
 
 ```bash
 cd frontend
@@ -153,18 +153,24 @@ O Playwright sobe sozinho uma API (porta 3100, com banco descartável) e um fron
 
 ## Rotas da API
 
-Documentação interativa (Swagger UI): http://localhost:8080/api/docs. Especificação OpenAPI em JSON: http://localhost:8080/api/docs.json.
+Documentação interativa (Swagger UI): http://localhost:8080/api/v1/docs. Especificação OpenAPI em JSON: http://localhost:8080/api/v1/docs.json.
 
-Para testar pelo Swagger: execute `POST /users/login`, copie o `token`, clique em **Authorize** e cole.
+Para testar pelo Swagger: execute `POST /auth/login`, copie o `token`, clique em **Authorize** e cole.
 
-Base: `http://localhost:8080/api`. As rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`.
+Base: `http://localhost:8080/api/v1`. As rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`.
+
+### Versionamento
+
+Todas as rotas ficam sob `/api/v1`. O prefixo é definido uma vez em [backend/src/config.ts](backend/src/config.ts) (`API_PREFIX`), e as rotas da versão são montadas num `Router` próprio em [backend/src/app.ts](backend/src/app.ts).
+
+Para lançar uma versão nova sem quebrar quem usa a atual, cria-se outro `Router` e monta-se em `/api/v2`, com os controllers que mudaram. A `v1` continua no ar até os clientes migrarem. O health check (`/api/health`) fica fora da versão, porque é usado pela infraestrutura (Docker), não pelos clientes da API.
 
 | Método | Rota                     | Acesso    | Descrição |
 |--------|--------------------------|-----------|-----------|
-| POST   | `/users/register`        | Público   | Cadastro (signup). Retorna o usuário e o token |
-| POST   | `/users/login`           | Público   | Login. Retorna o token JWT |
-| POST   | `/users/refresh`         | Cookie    | Troca o refresh token do cookie por um novo access token |
-| POST   | `/users/logout`          | Cookie    | Revoga o refresh token e apaga o cookie |
+| POST   | `/auth/register`         | Público   | Cadastro (signup). Retorna o usuário e o token |
+| POST   | `/auth/login`            | Público   | Login. Retorna o token JWT |
+| POST   | `/auth/refresh`          | Cookie    | Troca o refresh token do cookie por um novo access token |
+| POST   | `/auth/logout`           | Cookie    | Revoga o refresh token e apaga o cookie |
 | GET    | `/users/me`              | Protegida | Dados do usuário do token |
 | GET    | `/categories`            | Protegida | Lista as categorias |
 | POST   | `/categories`            | Protegida | Cria uma categoria |
@@ -186,12 +192,12 @@ São dois tokens, cada um com um papel:
 | Token | Formato | Validade | Onde fica no navegador | Como é enviado |
 |-------|---------|----------|------------------------|----------------|
 | Access token | JWT | 15 minutos | Só na memória da página | Cabeçalho `Authorization: Bearer <token>` |
-| Refresh token | Texto aleatório | 7 dias | Cookie `httpOnly`, `SameSite=Strict`, restrito a `/api/users` | Automaticamente, pelo navegador |
+| Refresh token | Texto aleatório | 7 dias | Cookie `httpOnly`, `SameSite=Strict`, restrito a `/api/v1/auth` | Automaticamente, pelo navegador |
 
 - **Login e cadastro** devolvem o access token no corpo e o refresh token no cookie. O JavaScript da página não consegue ler esse cookie, então um script malicioso não tem como roubá-lo.
-- **Renovação:** quando a página é aberta, ou quando a API responde `401`, o front-end chama `POST /users/refresh`, recebe outro access token e repete a requisição.
+- **Renovação:** quando a página é aberta, ou quando a API responde `401`, o front-end chama `POST /auth/refresh`, recebe outro access token e repete a requisição.
 - **Rotação:** cada renovação invalida o refresh token usado e emite um novo.
-- **Revogação:** `POST /users/logout` invalida o refresh token no banco (tabela `refresh_tokens`, que guarda só o hash). Se um refresh token já trocado for usado de novo, todas as sessões daquele usuário são encerradas.
+- **Revogação:** `POST /auth/logout` invalida o refresh token no banco (tabela `refresh_tokens`, que guarda só o hash). Se um refresh token já trocado for usado de novo, todas as sessões daquele usuário são encerradas.
 - **Limite:** um access token já emitido vale até expirar; por isso a validade curta.
 
 **Relacionamentos:** um usuário tem muitas categorias e muitas tarefas; uma categoria tem muitas tarefas. Cada usuário só enxerga os próprios dados: o recurso de outra pessoa responde `404`.
@@ -221,7 +227,7 @@ Todas as requisições estão prontas em [backend/requests.http](backend/request
 | Requisito | Onde está |
 |-----------|-----------|
 | Três recursos com relacionamento | `users`, `categories` e `todos`; rota `GET /categories/:id/todos` |
-| Signup, login com JWT e rotas protegidas | [backend/src/services/user.service.ts](backend/src/services/user.service.ts), [backend/src/services/token.service.ts](backend/src/services/token.service.ts) e [backend/src/middlewares/auth.middleware.ts](backend/src/middlewares/auth.middleware.ts). O token vai no cabeçalho `Authorization`; ver [Autenticação](#autenticação) |
+| Signup, login com JWT e rotas protegidas | [backend/src/services/auth.service.ts](backend/src/services/auth.service.ts), [backend/src/services/token.service.ts](backend/src/services/token.service.ts) e [backend/src/middlewares/auth.middleware.ts](backend/src/middlewares/auth.middleware.ts). O token vai no cabeçalho `Authorization`; ver [Autenticação](#autenticação) |
 | Banco de dados | PostgreSQL com Prisma: [backend/prisma/schema.prisma](backend/prisma/schema.prisma) e [backend/src/repositories](backend/src/repositories) |
 | Tratamento de erros | [backend/src/middlewares/error.middleware.ts](backend/src/middlewares/error.middleware.ts) e [backend/src/validators](backend/src/validators) |
 | Testes de todos os recursos da API | [backend/tests](backend/tests) |

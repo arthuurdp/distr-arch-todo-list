@@ -13,7 +13,7 @@ export async function createUser(request: APIRequestContext): Promise<TestUser> 
   const name = 'Ana Teste'
   const email = `ana.${Date.now()}.${Math.random().toString(36).slice(2, 8)}@teste.com`
 
-  const res = await request.post('/api/users/register', {
+  const res = await request.post('/api/v1/auth/register', {
     data: { name, email, password: PASSWORD },
   })
   expect(res.status()).toBe(201)
@@ -31,7 +31,7 @@ export async function login(page: Page, user: TestUser) {
 }
 
 export async function createCategory(request: APIRequestContext, user: TestUser, name: string) {
-  const res = await request.post('/api/categories', { headers: user.headers, data: { name } })
+  const res = await request.post('/api/v1/categories', { headers: user.headers, data: { name } })
   expect(res.status()).toBe(201)
   return (await res.json()) as { id: number; name: string }
 }
@@ -41,7 +41,7 @@ export async function createTodo(
   user: TestUser,
   data: { title: string; description?: string; dueDate?: string; categoryId?: number },
 ) {
-  const res = await request.post('/api/todos', { headers: user.headers, data })
+  const res = await request.post('/api/v1/todos', { headers: user.headers, data })
   expect(res.status()).toBe(201)
   return (await res.json()) as { id: number; title: string }
 }

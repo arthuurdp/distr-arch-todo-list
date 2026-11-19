@@ -4,7 +4,7 @@ import { notifyUnauthorized, refreshSession, session } from '@/api/session'
 
 type RetriableConfig = InternalAxiosRequestConfig & { retried?: boolean }
 
-export const client = axios.create({ baseURL: '/api' })
+export const client = axios.create({ baseURL: '/api/v1' })
 
 client.interceptors.request.use((config) => {
   const token = session.token()
