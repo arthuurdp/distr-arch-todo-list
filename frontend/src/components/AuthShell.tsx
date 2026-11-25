@@ -16,17 +16,18 @@ export function AuthShell({ title, subtitle, footer, children }: AuthShellProps)
   const isDark = resolvedTheme !== 'light'
 
   return (
-    <div className="relative grid min-h-svh">
-      <Switch
-        size="lg"
-        className="absolute top-4 right-4"
-        aria-label="Modo escuro"
-        checked={isDark}
-        onCheckedChange={(dark) => setTheme(dark ? 'dark' : 'light')}
-        thumbIcon={isDark ? <MoonIcon aria-hidden /> : <SunIcon aria-hidden />}
-      />
+    <div className="grid min-h-svh">
       <main className="flex flex-col justify-center px-6 py-10">
         <div className="mx-auto w-full max-w-sm text-center">
+          <div className="mb-6 flex justify-end">
+            <Switch
+              size="lg"
+              aria-label="Modo escuro"
+              checked={isDark}
+              onCheckedChange={(dark) => setTheme(dark ? 'dark' : 'light')}
+              thumbIcon={isDark ? <MoonIcon aria-hidden /> : <SunIcon aria-hidden />}
+            />
+          </div>
           <Brand className="mb-10 hidden" />
           <h1 className="text-3xl font-bold">{title}</h1>
           <p className="mt-2 text-muted-foreground">{subtitle}</p>
