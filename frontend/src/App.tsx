@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/lib/theme'
 import { AboutPage } from '@/pages/AboutPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { TodosPage } from '@/pages/TodosPage'
 
@@ -39,7 +40,7 @@ function AppRoutes() {
           <Route path="sobre" element={<AboutPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

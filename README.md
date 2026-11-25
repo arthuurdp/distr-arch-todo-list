@@ -130,7 +130,7 @@ cd backend
 npm test
 ```
 
-**Front-end** (38 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
+**Front-end** (40 testes E2E com Playwright). Na primeira vez, instale o navegador de teste:
 
 ```bash
 cd frontend
